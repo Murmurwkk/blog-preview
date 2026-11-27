@@ -1,0 +1,452 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="在 RTX 5070 Laptop 上，XOR 重排消除了目标共享内存读取的额外 wavefront，但在 1024³ FP32 GEMM 上，这个单缓冲版本比原布局慢约 27%。每个线程占用的寄存器增多，限制了可同时驻留的线程块数。在相同 XOR 双缓冲布局下，异步复制又缩短了两个测试尺寸的耗时。"><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="CUDA GEMM 的共享内存优化：XOR 重排与双缓冲的性能比较"><meta property="og:description" content="在 RTX 5070 Laptop 上，XOR 重排消除了目标共享内存读取的额外 wavefront，但在 1024³ FP32 GEMM 上，这个单缓冲版本比原布局慢约 27%。每个线程占用的寄存器增多，限制了可同时驻留的线程块数。在相同 XOR 双缓冲布局下，异步复制又缩短了两个测试尺寸的耗时。"><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/cn/blog/cuda-double-buffering/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/cn/blog/cuda-double-buffering/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/cuda-double-buffering/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/cuda-double-buffering/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>CUDA GEMM 的共享内存优化：XOR 重排与双缓冲的性能比较</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk 首页"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="主导航"> <a href="/blog-preview/" aria-label="首页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>首页</span>  </a><a href="/blog-preview/cn/blog/" aria-label="博客" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>博客</span>  </a><a href="/blog-preview/about/" aria-label="关于">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>关于</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="知乎主页"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>知乎</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub 主页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="切换明暗主题"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> 预览站包含标为 <span lang="en" class="draft-label">draft</span> 的文章。 </aside> <main> <div class="article-layout has-toc"> <article class="article"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="research">研究文章</p> <nav class="language-switch" aria-label="阅读语言"> <a lang="en" hreflang="en" href="/blog-preview/blog/cuda-double-buffering/">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/cuda-double-buffering/" aria-current="page">简体中文</a> </nav> </div> <h1>CUDA GEMM 的共享内存优化：XOR 重排与双缓冲的性能比较</h1> <p class="article-description">在 RTX 5070 Laptop 上，XOR 重排消除了目标共享内存读取的额外 wavefront，但在 1024³ FP32 GEMM 上，这个单缓冲版本比原布局慢约 27%。每个线程占用的寄存器增多，限制了可同时驻留的线程块数。在相同 XOR 双缓冲布局下，异步复制又缩短了两个测试尺寸的耗时。</p> <div class="tag-row">  <a class="tag" href="/blog-preview/cn/tags/CUDA/">#CUDA</a><a class="tag" href="/blog-preview/cn/tags/GEMM/">#GEMM</a><a class="tag" href="/blog-preview/cn/tags/shared%20memory/">#shared memory</a><a class="tag" href="/blog-preview/cn/tags/async%20pipelining/">#async pipelining</a><a class="tag" href="/blog-preview/cn/tags/performance%20experiments/">#performance experiments</a> </div> <details class="toc toc-inline"> <summary>目录 <span>8 节</span></summary> <ol> <li><a href="#128-个线程对-12864-gemm-输出块的分工">128 个线程对 128×64 GEMM 输出块的分工</a></li><li><a href="#xor-布局对共享内存标量读取-bank-冲突的影响">XOR 布局对共享内存标量读取 bank 冲突的影响</a></li><li><a href="#共享内存双缓冲的搬运同步与计算顺序">共享内存双缓冲的搬运、同步与计算顺序</a></li><li><a href="#非整块矩阵的补零地址对齐与写回边界">非整块矩阵的补零、地址对齐与写回边界</a></li><li><a href="#从普通单缓冲到-xor-布局与异步双缓冲">从普通单缓冲到 XOR 布局与异步双缓冲</a></li><li><a href="#四种-gemm-实现的配对耗时">四种 GEMM 实现的配对耗时</a></li><li><a href="#短-k-与大方阵上的双缓冲耗时">短 K 与大方阵上的双缓冲耗时</a></li><li><a href="#硬件参数与-roofline-对-gemm-方案选择的局限">硬件参数与 Roofline 对 GEMM 方案选择的局限</a></li> </ol> </details> </header> <div class="prose"><p>我在一版 FP32 GEMM 里发现，共享内存同一个 bank 要服务八个不同地址。改用 XOR 布局后，历史 Nsight Compute 报告中目标读取多出的 4,194,304 个 wavefront 全部消失，整颗 kernel 的共享内存读冲突计数也从 6,297,071 降到 7,399。可等我把两个单缓冲实现在同一进程里交替测量，1024³ 上 XOR 版反而慢了 <strong>26.6%</strong>。局部冲突确实解决了，整颗核函数的耗时还受另外几项变化影响。</p>
+<p>四种实现都在 RTX 5070 Laptop 上计算相同的 GEMM。每个线程块有 128 个线程，负责 128×64 个输出，每个线程累加其中的 8×8 个元素，K 方向每轮推进 32 项。保持这套分工后，相邻实现只改 A 的共享内存布局、缓冲槽数或复制指令，边界矩阵也走各自的完整实现。<a href="/blog-preview/cn/blog/gemm-reuse-ldst/">另一篇讲 GEMM 数据复用的文章</a>使用另一种分块，计时只在各自文章的实现之间比较。</p>
+<p>早先我看到冲突计数下降，就以为每个线程也能更早完成计算。可同一个线程在 XOR 版本里还要计算新的地址，而且会占用更多寄存器。理解完整耗时，需要知道省下了哪些读取，以及一个 SM 还能同时容纳多少线程块。</p>
+<p>这也区分了后面两次改动的作用。XOR 重排改变同一条读指令中的地址分布，两个缓冲槽则让当前 K 块与下一块可以同时留在共享内存。两种改动最终对耗时的影响都要在完整 kernel 中测量。</p>
+<h2 id="128-个线程对-12864-gemm-输出块的分工">128 个线程对 128×64 GEMM 输出块的分工</h2>
+<p>对于连续行主序的输入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo stretchy="false">[</mo><mi>M</mi><mo separator="true">,</mo><mi>K</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">A[M,K]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">A</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.109em;">M</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mclose">]</span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo stretchy="false">[</mo><mi>K</mi><mo separator="true">,</mo><mi>N</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">B[K,N]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">]</span></span></span></span>，一个线程块只计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo stretchy="false">[</mo><mi>M</mi><mo separator="true">,</mo><mi>N</mi><mo stretchy="false">]</mo><mo>=</mo><mi>A</mi><mi>B</mi></mrow><annotation encoding="application/x-tex">C[M,N]=AB</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.109em;">M</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">A</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span> 中的 128×64 个输出。K 方向每推进一段，块内四个 warp 共同读入 A 的 128×32 子块和 B 的 32×64 子块，合计 6,144 个 float、24 KiB。每个线程将自己 64 个输出的部分和留在寄存器里，继续处理下一段 K。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="cpp"><code><span class="line"><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> warp </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> threadIdx.x </span><span style="color:#FF7B72">/</span><span style="color:#79C0FF"> 32</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> lane </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> threadIdx.x </span><span style="color:#FF7B72">%</span><span style="color:#79C0FF"> 32</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> mr </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> (warp </span><span style="color:#FF7B72">/</span><span style="color:#79C0FF"> 2</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 64</span><span style="color:#FF7B72"> +</span><span style="color:#E6EDF3"> (lane </span><span style="color:#FF7B72">/</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 8</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> nc </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> (warp </span><span style="color:#FF7B72">%</span><span style="color:#79C0FF"> 2</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 32</span><span style="color:#FF7B72"> +</span><span style="color:#E6EDF3"> (lane </span><span style="color:#FF7B72">%</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 8</span><span style="color:#E6EDF3">;</span></span></code></pre>
+<p>每个线程负责块内 <code>[mr:mr+8,nc:nc+8]</code>。看 warp 0：lane 0–3 做相同的八行、不同的四组八列，合起来是 8×32；lane 4–7 接下一条。一个 warp 覆盖 64×32，四个 warp 按 2×2 拼成 128×64。固定 k 后，同四个线程共享八个 A，却取不同的 B。A 在计算上适合复用，麻烦出在把它直接按 <code>row*32+k</code> 放入共享内存。</p>
+<h2 id="xor-布局对共享内存标量读取-bank-冲突的影响">XOR 布局对共享内存标量读取 bank 冲突的影响</h2>
+<p>要由前面的线程映射算出冲突，需要把每个线程读的字地址换成 bank 编号。这里访问的是 32 位字，共享内存分成 32 个 bank，字地址对 32 取模便得到编号。落在不同 bank 的访问可以并行，同 bank 的不同字要分批服务。如果几个 lane 读的是<strong>同一个字</strong>，硬件可以广播一次。数冲突时，应先把这些广播合并。<a href="https://docs.nvidia.com/cuda/archive/12.6.0/cuda-c-programming-guide/index.html#shared-memory-5-x">CUDA 共享内存说明</a></p>
+<p>固定线程内的行偏移 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi></mrow><annotation encoding="application/x-tex">i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span>，把上面的线程编号代入 A 的地址：</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mtable rowspacing="0.25em" columnalign="right left" columnspacing="0em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="true"><mi>r</mi></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mrow></mrow><mo>=</mo><mn>64</mn><mo stretchy="false">⌊</mo><mi>w</mi><mi>a</mi><mi>r</mi><mi>p</mi><mi mathvariant="normal">/</mi><mn>2</mn><mo stretchy="false">⌋</mo><mo>+</mo><mn>8</mn><mo stretchy="false">⌊</mo><mi>l</mi><mi>a</mi><mi>n</mi><mi>e</mi><mi mathvariant="normal">/</mi><mn>4</mn><mo stretchy="false">⌋</mo><mo>+</mo><mi>i</mi><mo separator="true">,</mo></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mi>w</mi><mi>o</mi><mi>r</mi><mi>d</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mrow></mrow><mo>=</mo><mn>32</mn><mi>r</mi><mo>+</mo><mi>k</mi><mo separator="true">,</mo></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mi>b</mi><mi>a</mi><mi>n</mi><mi>k</mi></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="true"><mrow><mrow></mrow><mo>=</mo><mi>k</mi><mtext> </mtext><mo lspace="0.22em" rspace="0.22em"><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi></mrow></mo><mtext> </mtext><mn>32.</mn></mrow></mstyle></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
+r&#x26;=64\lfloor warp/2\rfloor+8\lfloor lane/4\rfloor+i,\\
+word&#x26;=32r+k,\\
+bank&#x26;=k\bmod32.
+\end{aligned}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:4.2em;vertical-align:-1.85em;"></span><span class="mord"><span class="mtable"><span class="col-align-r"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.35em;"><span style="top:-4.51em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span><span style="top:-3.01em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="mord mathnormal" style="margin-right:0.0278em;">or</span><span class="mord mathnormal">d</span></span></span><span style="top:-1.51em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">bank</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.85em;"><span></span></span></span></span></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.35em;"><span style="top:-4.51em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord">64</span><span class="mopen">⌊</span><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mord mathnormal">p</span><span class="mord">/2</span><span class="mclose">⌋</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">8</span><span class="mopen">⌊</span><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">an</span><span class="mord mathnormal">e</span><span class="mord">/4</span><span class="mclose">⌋</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">i</span><span class="mpunct">,</span></span></span><span style="top:-3.01em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord">32</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mpunct">,</span></span></span><span style="top:-1.51em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin"><span class="mord"><span class="mord mathrm">mod</span></span></span><span class="mspace" style="margin-right:0.0556em;"></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">32.</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.85em;"><span></span></span></span></span></span></span></span></span></span></span></span>
+<p>当相邻两行相距 32 个字时，跨一行恰好又回到原来的 bank。一个 warp 的 32 个 lane 因此全落在同一 bank。每四个相邻 lane 读同一个字，可以广播，但八组仍要分别读八个不同的字。</p>
+<p>最容易想到的处理是在行尾垫一个元素。我还希望把相邻四个 float 作为连续的 16 字节一起复制，于是保留每组的内部顺序，只重排一行里的八个组：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="cpp"><code><span class="line"><span style="color:#FF7B72">int</span><span style="color:#D2A8FF"> a_index</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">int</span><span style="color:#FFA657"> row</span><span style="color:#E6EDF3">, </span><span style="color:#FF7B72">int</span><span style="color:#FFA657"> col</span><span style="color:#E6EDF3">) {</span></span>
+<span class="line"><span style="color:#FF7B72">    int</span><span style="color:#E6EDF3"> group </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> (col </span><span style="color:#FF7B72">/</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">^</span><span style="color:#E6EDF3"> ((row </span><span style="color:#FF7B72">/</span><span style="color:#79C0FF"> 8</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">%</span><span style="color:#79C0FF"> 8</span><span style="color:#E6EDF3">);</span></span>
+<span class="line"><span style="color:#FF7B72">    return</span><span style="color:#E6EDF3"> row </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 32</span><span style="color:#FF7B72"> +</span><span style="color:#E6EDF3"> group </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 4</span><span style="color:#FF7B72"> +</span><span style="color:#E6EDF3"> col </span><span style="color:#FF7B72">%</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span></code></pre>
+<p>拿 col=0 检查：第 0–7 行留在组 0，第 8–15 行换到组 1，第 16–23 行换到组 2。沿原先冲突的八组行去读，组起始 bank 变成 0、4、8、…、28；相邻四个 lane 的广播仍然成立。</p>
+<p><img alt="同一次标量加载中，lane、字地址和 bank 的对应关系" loading="lazy" decoding="async" fetchpriority="auto" width="1404" height="774" src="/blog-preview/_astro/bank-model.CMh8p7XU_Z1aSUse.webp" ></p>
+<p><em>图 1　普通行布局把八个不同地址都映射到同一 bank，XOR 重排把它们分散到八个 bank。四个 lane 对同一地址的读取在两种布局中都可广播。</em></p>
+<p>固定一行，XOR 是对八组位置的一一置换，同组四个 float 保持连续。写入 shared 的生产者、从中读取的消费者必须共用 <code>a_index</code>。如果只改读端，线程拿到的是另一个矩阵元素。以下实验只重排 A，B 沿用原布局。</p>
+<p>我枚举了四个 warp、32 个 k 和八个行偏移。按每个 lane 加载一个标量计算，同一 bank 在普通布局中最多收到八个不同的字地址，XOR 重排后只收到一个。编译器可以把标量读合为宽指令，共享内存流水线也可以拆分请求，因此下面还要对照实际指令与硬件记录的服务次数。</p>
+<h2 id="共享内存双缓冲的搬运同步与计算顺序">共享内存双缓冲的搬运、同步与计算顺序</h2>
+<p>XOR 改变的是一个 K 块内部的读地址，缓冲策略则决定何时能装入下一个 K 块。若共享内存中只有一份 A、B 子块，所有线程必须按以下次序生产和读取它。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>load K chunk t</span></span>
+<span class="line"><span>block barrier: all inputs written</span></span>
+<span class="line"><span>compute every multiply-add for this chunk</span></span>
+<span class="line"><span>block barrier: all consumers done reading</span></span>
+<span class="line"><span>overwrite the same storage with chunk t+1</span></span></code></pre>
+<p>同一线程块的四个 warp 可以各自推进。第一道屏障让它们等所有线程写完当前块才开始读，第二道屏障让已经算完的 warp 等待读者离开，才允许覆盖当前块。</p>
+<p>只有一个槽时，哪怕下一块地址已经算出来，也不能提前覆盖还在用的数据。第二个槽允许分块 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi></mrow><annotation encoding="application/x-tex">t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t+1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6984em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> 短暂共存：先装入第 0 块，消费当前槽，同时准备另一个。等新数据到齐、旧数据读完，两个槽交换角色。</p>
+<p><img alt="共享内存双缓冲的写入、读取与复用；横轴表示依赖先后" loading="lazy" decoding="async" fetchpriority="auto" width="2079" height="756" src="/blog-preview/_astro/buffer-lifetime.B-W9jhDC_tI2oA.webp" ></p>
+<p><em>图 2　箭头表示写入、读取和复用之间的依赖。线程读取一个槽时，搬运指令可以写另一个槽，横向距离不代表耗时。</em></p>
+<p>异步版本用 <code>cp.async.cg.shared.global</code> 直接从全局内存搬到 shared，绕过程序可见的中转寄存器。线程发出复制后可以继续计算，临用数据前再等。<code>commit_group</code> 将本线程发出的复制组成一组，<code>wait_group 0</code> 等到本线程此前的组全部完成。<a href="https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async">PTX 的 cp.async 语义</a></p>
+<p>循环中的 <code>current_slot</code> 和 <code>other_slot</code> 交替指向两块共享内存，等待和块级屏障位于每次交换之前。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="cpp"><code><span class="line"><span style="color:#FF7B72">if</span><span style="color:#E6EDF3"> (tiles </span><span style="color:#FF7B72">></span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">) {</span></span>
+<span class="line"><span style="color:#D2A8FF">    load_tile</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">0</span><span style="color:#E6EDF3">, slot0);</span><span style="color:#8B949E">   // each thread handles its own piece of input</span></span>
+<span class="line"><span style="color:#D2A8FF">    commit_group</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#D2A8FF">    wait_group_0</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#D2A8FF">    __syncthreads</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span>
+<span class="line"><span style="color:#FF7B72">for</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> t </span><span style="color:#FF7B72">=</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">; t </span><span style="color:#FF7B72">&#x3C;</span><span style="color:#E6EDF3"> tiles; </span><span style="color:#FF7B72">++</span><span style="color:#E6EDF3">t) {</span></span>
+<span class="line"><span style="color:#FF7B72">    if</span><span style="color:#E6EDF3"> (t </span><span style="color:#FF7B72">+</span><span style="color:#79C0FF"> 1</span><span style="color:#FF7B72"> &#x3C;</span><span style="color:#E6EDF3"> tiles) {</span></span>
+<span class="line"><span style="color:#D2A8FF">        load_tile</span><span style="color:#E6EDF3">(t </span><span style="color:#FF7B72">+</span><span style="color:#79C0FF"> 1</span><span style="color:#E6EDF3">, other_slot);</span></span>
+<span class="line"><span style="color:#D2A8FF">        commit_group</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#E6EDF3">    }</span></span>
+<span class="line"><span style="color:#D2A8FF">    compute_tile</span><span style="color:#E6EDF3">(current_slot);</span></span>
+<span class="line"><span style="color:#D2A8FF">    wait_group_0</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#D2A8FF">    __syncthreads</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"><span style="color:#D2A8FF">    swap</span><span style="color:#E6EDF3">(current_slot, other_slot);</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span></code></pre>
+<p>每个线程的 <code>wait</code> 只等待自己提交的复制。即使它已经写好下一块，其他线程仍可能在写新槽，也可能还有 warp 在读旧槽。块级屏障要求所有线程完成各自的等待与本轮计算，跨过屏障后才能读新槽、覆写旧槽。</p>
+<p>理想情形下，稳态每块接近 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>T</mi><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">d</mi></mrow></msub><mo separator="true">,</mo><msub><mi>T</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">e</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\max(T_{\rm load},T_{\rm compute})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mop">max</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathrm mtight">load</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathrm mtight">compute</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>，串行则是两者之和。这个估算略去了首块装入、末块计算、同步和资源竞争。K 只有一块时压根没有稳态，哪怕测到时差，也不能归给跨块重叠。</p>
+<h3 id="寄存器双缓冲的首组预加载">寄存器双缓冲的首组预加载</h3>
+<p>每个 k 上，一个线程从共享内存读八个 A 元素和八个 B 元素，用它们更新寄存器中的 64 个累加器。操作数也可以分两组寄存器交替存放，这样计算本组 FMA 时就有位置预取下一组。第一次进入循环前必须装好第 0 组，否则第一条 FMA 就会读到初值未定的寄存器。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="cpp"><code><span class="line"><span style="color:#D2A8FF">load_fragment</span><span style="color:#E6EDF3">(</span><span style="color:#8B949E">/* k */</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">,</span><span style="color:#8B949E"> /* register slot */</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">);</span></span>
+<span class="line"><span style="color:#FF7B72">for</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">int</span><span style="color:#E6EDF3"> k </span><span style="color:#FF7B72">=</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">; k </span><span style="color:#FF7B72">&#x3C;</span><span style="color:#79C0FF"> 32</span><span style="color:#E6EDF3">; </span><span style="color:#FF7B72">++</span><span style="color:#E6EDF3">k) {</span></span>
+<span class="line"><span style="color:#FF7B72">    int</span><span style="color:#E6EDF3"> cur </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> k </span><span style="color:#FF7B72">&#x26;</span><span style="color:#79C0FF"> 1</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">    if</span><span style="color:#E6EDF3"> (k </span><span style="color:#FF7B72">+</span><span style="color:#79C0FF"> 1</span><span style="color:#FF7B72"> &#x3C;</span><span style="color:#79C0FF"> 32</span><span style="color:#E6EDF3">) </span><span style="color:#D2A8FF">load_fragment</span><span style="color:#E6EDF3">(k </span><span style="color:#FF7B72">+</span><span style="color:#79C0FF"> 1</span><span style="color:#E6EDF3">, cur </span><span style="color:#FF7B72">^</span><span style="color:#79C0FF"> 1</span><span style="color:#E6EDF3">);</span></span>
+<span class="line"><span style="color:#D2A8FF">    fma_fragment</span><span style="color:#E6EDF3">(cur);</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span></code></pre>
+<p><img alt="进入寄存器轮换前先装好第 0 组操作数" loading="lazy" decoding="async" fetchpriority="auto" width="2172" height="724" src="/blog-preview/_astro/register-prime.DoGnO54o_Z2eKXxr.webp" ></p>
+<p><em>图 3　第一次 FMA 读取的是槽 0，图中循环前的装入不能省。</em></p>
+<p>去掉预装，第一轮会填槽 1，却拿槽 0 去做 FMA。把槽 0 清零也会漏掉当前分块 k=0 的贡献。除非专门设计跨分块预载，每次换 shared 分块，都要重新装好首组寄存器。</p>
+<p>这项预加载遗漏在一次实际运行中造成了数值错误。在 <code>M=128,N=512,K=64</code> 的那次错误运行里，65,536 个输出全部超出误差预算，最大绝对误差约 0.993。值都是有限数，保护区完好，memcheck 也报零错。<strong>读到未初始化的操作数，完全可能没有任何非法地址访问。</strong> 当时还同时改过其他代码，不能把全部数值误差都精确摊给这一处。</p>
+<p>比多抽几组随机数更直接的测试，是让 A 每 32 个 K 元素中只有第一个为 1，其余都为 0，B 任取。整个乘积只靠 k=0、32、64……这些项；逐块漏掉第一项便一目了然。</p>
+<h2 id="非整块矩阵的补零地址对齐与写回边界">非整块矩阵的补零、地址对齐与写回边界</h2>
+<p>K=33 时，第二块只有一个有效 k。M=129 或 N=65 时，边缘输出也只占完整 tile 的一部分。线程仍按原 tile 协作，只在读入阶段给越界的位置补零，在写回阶段检查输出的行列边界。</p>
+<p>越界元素对 GEMM 乘积的贡献可以补零，负责这些位置的线程仍需和其他线程一起通过屏障。比如一个四元素组只剩一个有效元素时，16 字节宽读已经越界，必须缩小读取范围。</p>
+<p>因此每组先检查完整范围和实际指针对齐。四个数全有效且源地址 16 字节对齐，才走宽异步复制；否则逐个读取有效元素，其余补零。K=33 时行间距 132 字节，同一矩阵的不同行对齐情况不同，单次 kernel 内就可能混用异步复制和普通 shared 写。</p>
+<p>宽复制和逐元素补零都写入同一套 XOR 布局，各自负责的目标范围互不重叠。若只有回退路径按普通行布局写入，整块测试仍可能通过，碰到边界时消费者却会读到错误的元素。消费者还必须等异步复制和块级屏障完成，才能使用这批数据。</p>
+<p>输出网格直接取二维 <code>ceil(N/64) × ceil(M/128)</code>。我试过以八个列块为一组重排：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>tile_row = blockIdx.x >> 3</span></span>
+<span class="line"><span>tile_col = blockIdx.y * 8 + (blockIdx.x &#x26; 7)</span></span></code></pre>
+<p>旧实现没有排除重排产生的填充块。比如 N=64 只需一列块，多出的块却仍去读 B、写 C。<code>128×64×64</code> 报了 82 次 memcheck 错误，第一处就是 16 字节异步读越界。按列分组可以研究块间缓存局部性，前提是每一块确实映到有效输出。这里退回直接网格。</p>
+<p>四个正式变体加一份兼容入口，通过了 240 项 FP64 数值检查，覆盖 K=0、尾块、0–3 个 float 的指针偏移及每块只有首项非零的输入。四个正式变体各跑了 48 次 memcheck 和 48 次 racecheck，均为零错误、零危险。误差预算和形状清单放在文末。</p>
+<h2 id="从普通单缓冲到-xor-布局与异步双缓冲">从普通单缓冲到 XOR 布局与异步双缓冲</h2>
+<p>下表的四个版本使用同一套线程映射、8×8 寄存器外积和首组预加载，相邻两行只改变 A 的共享内存布局、缓冲槽数或复制方式中的一项。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>简称</th><th>A 的 shared 布局</th><th align="right">槽数</th><th>global→shared</th></tr></thead><tbody><tr><td>raw single</td><td>普通行布局</td><td align="right">1</td><td>同步 float4，边界用标量</td></tr><tr><td>swizzle single</td><td>四元素组 XOR</td><td align="right">1</td><td>同上</td></tr><tr><td>swizzle double</td><td>四元素组 XOR</td><td align="right">2</td><td>同步预装下一槽</td></tr><tr><td>async double</td><td>四元素组 XOR</td><td align="right">2</td><td>完整对齐组用 cp.async，边界用标量</td></tr></tbody></table></div>
+<p>例如，异步双缓冲与同步双缓冲共用 XOR 布局和两个槽，二者的差值才对应这次复制路径的改写。若直接与普通单缓冲相比，布局和槽数的影响也会计入。</p>
+<h3 id="异步复制的机器指令与寄存器开销">异步复制的机器指令与寄存器开销</h3>
+<p>异步版本的 PTX 保留了 <code>cp.async.cg.shared.global</code>、<code>cp.async.commit_group</code>、<code>cp.async.wait_group 0</code> 和 <code>bar.sync 0</code>。在 SM120 的 SASS 里，它们对应：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>LDGSTS.E.BYPASS.128 ...</span></span>
+<span class="line"><span>LDGDEPBAR</span></span>
+<span class="line"><span>... compute and other instructions ...</span></span>
+<span class="line"><span>DEPBAR.LE SB0, 0x0</span></span></code></pre>
+<p>从机器码可以确认，全局内存到共享内存的异步复制、提交与等待都出现在这个模板实例中。反汇编里跨预装、循环和分支共有五处 LDGSTS、两处提交和两处等待。静态出现几处，不能读成每块恰好执行几次，更量不出被计算盖住了多少搬运时间。</p>
+<p>编译器给四个版本分配的寄存器和共享内存如下表。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>版本</th><th align="right">每线程寄存器</th><th align="right">每块程序分配的 shared</th><th align="right">溢出读/写</th></tr></thead><tbody><tr><td>raw single</td><td align="right">128</td><td align="right">24,576 B</td><td align="right">0 / 0</td></tr><tr><td>swizzle single</td><td align="right">168</td><td align="right">24,576 B</td><td align="right">0 / 0</td></tr><tr><td>swizzle double</td><td align="right">211</td><td align="right">49,152 B</td><td align="right">0 / 0</td></tr><tr><td>async double</td><td align="right">211</td><td align="right">49,152 B</td><td align="right">0 / 0</td></tr></tbody></table></div>
+<p>普通单缓冲改为 XOR 单缓冲后，每个线程多占 40 个寄存器。重排同时改变地址表达式、值的活跃区间和指令调度，无法把这 40 个寄存器都算在执行 XOR 的那条指令上。改用双槽后，共享内存翻倍，寄存器用量增至每线程 211 个。即使编译器没有将寄存器内容溢出到局部内存，一个 SM 能同时容纳的线程块仍会受寄存器总量限制。</p>
+<h3 id="共享内存读取的额外-wavefront-与线程块驻留上限">共享内存读取的额外 wavefront 与线程块驻留上限</h3>
+<p>地址枚举只预测哪些 lane 的读取会冲突。要核对这些冲突实际多占了多少次共享内存服务，可以看历史 Nsight Compute 在 1024³ 上采到的计数。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>版本</th><th align="right">实际 wavefront</th><th align="right">理想 wavefront</th><th align="right">额外 wavefront</th><th align="right">实测占用率</th></tr></thead><tbody><tr><td>raw single</td><td align="right">13,369,344</td><td align="right">9,175,040</td><td align="right">4,194,304</td><td align="right">28.86%</td></tr><tr><td>swizzle single</td><td align="right">7,208,960</td><td align="right">7,208,960</td><td align="right">0</td><td align="right">22.35%</td></tr><tr><td>swizzle double</td><td align="right">7,208,960</td><td align="right">7,208,960</td><td align="right">0</td><td align="right">14.81%</td></tr><tr><td>async double</td><td align="right">7,208,960</td><td align="right">7,208,960</td><td align="right">0</td><td align="right">15.03%</td></tr></tbody></table></div>
+<p><img alt="四个实现的共享内存服务次数与实测占用率" loading="lazy" decoding="async" fetchpriority="auto" width="1820" height="740" src="/blog-preview/_astro/ncu-wavefront-occupancy.Bry4_cbe_Wot8P.webp" ></p>
+<p><em>图 4　XOR 把目标读的 wavefront 数降到理想值，同时也降低了实测占用率。</em></p>
+<p>一次共享内存读请求可能需要流水线分批服务，每一批称为一个 wavefront。即使访问没有冲突，一条宽读取也可能需要分几次服务。报告根据指令宽度和参与线程给出理想次数，实测超过它的部分才算额外 wavefront。这里最常见的是 <code>LDS.128</code>，每个 lane 读四个 float，读宽已经不同于上面的标量模型。</p>
+<p>我从 raw 版本的 Source 页逐个导出 SASS 地址，发现额外服务集中在 64 处 <code>LDS.128</code>。例如 <code>LDS.128 R20,[R4]</code> 实际 131,072 次，理想 65,536 次；64 处差值之和恰为 4,194,304。对这条真正执行的宽读，实际与理想之比是 2。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="powershell"><code><span class="line"><span style="color:#E6EDF3">ncu </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">import pipeline</span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3">raw.ncu</span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3">rep </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">page source </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">print</span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3">source sass </span><span style="color:#FF7B72">`</span></span>
+<span class="line"><span style="color:#FF7B72">  --</span><span style="color:#E6EDF3">metrics memory_l1_wavefronts_shared</span><span style="color:#FF7B72">,</span><span style="color:#E6EDF3">memory_l1_wavefronts_shared_ideal </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">csv</span></span></code></pre>
+<p>用 Nsight Compute 追查其他读取时，也可以在目标模板实例的 Source 页按 SASS 地址比较实际与理想服务次数。差值指出多次服务发生在哪条指令上，把这条指令各 lane 的地址代回 bank 公式，就能解释哪些访问争用了同一个 bank。<a href="https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html">Nsight Compute 指标与 SourceCounters</a></p>
+<p>三个 XOR 实现的目标读额外 wavefront 都归零。另一个硬件计数 <code>l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum</code> 从 raw 的 6,297,071 降到 XOR 单槽的 7,399，两项指标并不相等，整个 kernel 仍有少量读冲突。</p>
+<p>同一份报告里有两种与驻留有关的量。按寄存器容量推算，每个 SM 可同时容纳的线程块上限从 4 块降到 3 块、再降到 2 块；单看共享内存容量，上限从 4 块降到 2 块。表中实测的是 SM 在活动周期里平均驻留的活跃 warp 数占硬件上限的比例，这个比例也随之降低。驻留的 warp 较少时，调度器可选来掩盖等待的工作也较少，实际能否发射还取决于指令的就绪情况。</p>
+<h2 id="四种-gemm-实现的配对耗时">四种 GEMM 实现的配对耗时</h2>
+<p>额外 wavefront 消失以后，我把四个实现放进同一份可执行文件，用相同的输入输出地址比较完整耗时。各版本通过有限值、输出保护区、FP64 采样和整矩阵 cuBLAS 检查后才进入计时。每项对照用 3 个独立进程试测，另用 15 个新进程确认，每进程完成 20 组 ABBA/BAAB。每个进程给出一个平均对数时间比，Student-t 区间按这些独立进程之间的差异计算。CUDA 事件的批次包含可能的供给间隙；分配、传输、造参考值都在区间外。输入地址复用，未刷 L2。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>形状</th><th>A → B</th><th align="right">耗时比 B/A</th><th align="right">95% 区间</th></tr></thead><tbody><tr><td>1024³</td><td>raw single → raw single (A/A)</td><td align="right">1.0004</td><td align="right">0.9950–1.0057</td></tr><tr><td>1024³</td><td>raw single → XOR single</td><td align="right">1.2662</td><td align="right">1.2587–1.2737</td></tr><tr><td>1024³</td><td>XOR single → XOR double</td><td align="right">0.9306</td><td align="right">0.9271–0.9340</td></tr><tr><td>1024³</td><td>XOR double → async double</td><td align="right">0.8267</td><td align="right">0.8222–0.8313</td></tr><tr><td>2048³</td><td>raw single → raw single (A/A)</td><td align="right">0.9962</td><td align="right">0.9899–1.0026</td></tr><tr><td>2048³</td><td>raw single → XOR single</td><td align="right">1.0557</td><td align="right">1.0488–1.0627</td></tr><tr><td>2048³</td><td>XOR single → XOR double</td><td align="right">1.2203</td><td align="right">1.2104–1.2303</td></tr><tr><td>2048³</td><td>XOR double → async double</td><td align="right">0.7678</td><td align="right">0.7606–0.7750</td></tr></tbody></table></div>
+<p><img alt="四个原生 GEMM 实现按形状和改写步骤做配对计时" loading="lazy" decoding="async" fetchpriority="auto" width="1620" height="648" src="/blog-preview/_astro/revision-paired.D4Piv7Do_Z220Tk.webp" ></p>
+<p><em>图　每行比较一对实现，横轴是 B 耗时除以 A 耗时，小于 1 表示 B 更快。误差棒为按独立进程估计的 95% 区间。</em></p>
+<p>两个同函数 A/A 的区间都落入预定的 ±2% 校准带，八组比较均达到了区间半宽 2% 的目标。在两个测试形状上，把普通单缓冲改成 XOR 单缓冲都会变慢。随后加上同步双缓冲，1024³ 变快、2048³ 变慢。保留双槽并把同步复制换成异步之后，两种尺寸的耗时才都缩短。每一步是一次独立配对，不能将相邻比连乘当作 raw 与 async 的直接配对结果。</p>
+<p>笔记本未锁频。每个进程只在开始和结束时记录功耗、温度与时钟，期间的电源状态查询还显示软件功率限制曾生效，因此无法还原每次执行的频率。编译器分配的寄存器数则可以直接从构建产物读取，也可以给它设置上限，检验普通布局与 XOR 布局的排名是否会改变。</p>
+<h3 id="寄存器上限改变了普通布局与-xor-布局的耗时排序">寄存器上限改变了普通布局与 XOR 布局的耗时排序</h3>
+<p>为了判断名次对寄存器约束有多敏感，我先在编译命令里统一设置 <code>-maxrregcount=128</code>。结果 raw 仍分到 128 个寄存器，XOR 仍有 168 个。原有 <code>__launch_bounds__</code> 使这个选项没有约束到目标 kernel。我保留这次失败的编译日志，另生成两份头文件，只把注解换为 <code>__maxnreg__(128)</code> 或 <code>__maxnreg__(168)</code>，内核主体与原二进制不动；构建时检查实际分配确实没超过上限。<a href="https://docs.nvidia.com/cuda/archive/12.9.1/cuda-c-programming-guide/index.html">CUDA 对寄存器限定符的说明</a></p>
+<p>两个派生配置各自用 3 个进程试测，8 个独立确认进程、每进程 20 个平衡块。以下是 1024³：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>编译约束</th><th align="right">实际寄存器 raw / XOR</th><th align="right">耗时中位数 raw / XOR（ms）</th><th align="right">耗时比 XOR/raw</th><th align="right">95% 区间</th></tr></thead><tbody><tr><td>原版 launch bounds</td><td align="right">128 / 168</td><td align="right">0.6211 / 0.7879</td><td align="right">1.2662</td><td align="right">1.2587–1.2737</td></tr><tr><td>派生 maxnreg 128</td><td align="right">124 / 128</td><td align="right">0.7030 / 0.6898</td><td align="right">0.9811</td><td align="right">0.9722–0.9902</td></tr><tr><td>派生 maxnreg 168</td><td align="right">167 / 168</td><td align="right">0.7897 / 0.6496</td><td align="right">0.8210</td><td align="right">0.8169–0.8252</td></tr></tbody></table></div>
+<p>寄存器上限真正生效的两个单缓冲实例均无 spill。两列绝对时间是保存的计时块中位数，比值按进程对数比汇总。不同编译配置之间没有直接配对，不能用它们的绝对时间差单独估计改上限的收益。</p>
+<p>两种派生约束下原排名都翻转。它说明编译与资源配置能左右结果，却还不能锁定唯一原因。举例说，上限 168 时 raw 自己就从 128 变成了 167 个实际寄存器。换注解还可能改变调度和活跃区间，同一上限不保证同一分配，无 spill 也不保证指令相同。零额外 wavefront 的采样来自历史原生二进制，派生版本没有重做那项采样。</p>
+<h2 id="短-k-与大方阵上的双缓冲耗时">短 K 与大方阵上的双缓冲耗时</h2>
+<p>下面是另一批预热计时：每配置三轮，每轮 30 批，中心值取三个轮中位数的中位数。NCU 采用 kernel replay 与默认缓存、时钟控制，只用来解释访问；表里的时延取自独立计时。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">M=N=K</th><th align="right">raw single / ms</th><th align="right">swizzle single / ms</th><th align="right">swizzle double / ms</th><th align="right">async double / ms</th></tr></thead><tbody><tr><td align="right">512</td><td align="right">0.07244</td><td align="right">0.06988</td><td align="right">0.06890</td><td align="right">0.05080</td></tr><tr><td align="right">1024</td><td align="right">0.30379</td><td align="right">0.36307</td><td align="right">0.33876</td><td align="right">0.29852</td></tr><tr><td align="right">2048</td><td align="right">2.33407</td><td align="right">2.47729</td><td align="right">2.82787</td><td align="right">2.25238</td></tr></tbody></table></div>
+<p><img alt="相同输出映射下四种布局和搬运方法在方阵上的用时" loading="lazy" decoding="async" fetchpriority="auto" width="1332" height="1512" src="/blog-preview/_astro/pipeline-ablation.BEu2hRpB_18bVqf.webp" ></p>
+<p><em>图 5　三种方阵规模下四个完整实现的时间。</em></p>
+<p>1024³ 历史批次里 XOR 单槽慢约 19.5%；raw 的三轮范围 0.30325–0.30822 ms，swizzle 为 0.36302–0.36312 ms。早期结论是额外 wavefront 的消失没抵销完整改写的成本。寄存器、驻留数、地址计算和调度当时都还是候选原因，因此后续才要检查寄存器约束究竟有没有生效。</p>
+<p>2048³ 时加同步槽使耗时从 2.47729 升至 2.82787 ms；换异步搬运后降到 2.25238 ms。以同布局同步双槽为分母，约省 20.4%；以原始 raw 单槽 2.33407 ms 为分母，约省 3.5%。一个比较复制机制，另一个比较整套设计。</p>
+<p>短 K 提供了一个可以排除跨块重叠的对照。<code>128×64×32</code> 只有一个输出块和一个 K 分块，没有下一块可预取；async 仍测到 11.78 µs，raw 为 12.54 µs。此处只能归到整个复制路径与编译调度的差异。K=64 时两者为 12.71 和 12.66 µs，三轮范围相交。</p>
+<p><img alt="小形状的设备时间与加入主机往返后的总时间" loading="lazy" decoding="async" fetchpriority="auto" width="1404" height="864" src="/blog-preview/_astro/pipeline-small.DraleJFV_11DOqA.webp" ></p>
+<p><em>图 6　左图为 128×64×32 的对齐输入，右图为 129×65×33、偏移一个 float 的输入。蓝柱是设备执行时间，橙柱还包括输入上传、结果回传与同步。</em></p>
+<p>把可分页主机内存的上传、回传和同步算入，微秒级 kernel 差异在总等待里占比更小。图中的往返不含分配、编译和创建 handle。</p>
+<p>另一批实验又换了八种形状，每行都用同一形状下的 raw 单槽作分母：</p>
+<p><img alt="瘦长矩阵、短 K 与大方阵上相对 raw 单缓冲的性能" loading="lazy" decoding="async" fetchpriority="auto" width="1404" height="1007" src="/blog-preview/_astro/shape-map.Bye2q7WX_pUY5c.webp" ></p>
+<p><em>图 7　每一行都以同一矩阵形状下的 raw 单缓冲耗时为基准，比较双缓冲在短 K、大方阵和瘦长矩阵上的表现。</em></p>
+<p><code>8192×64×128</code> 恰好铺满输出 tile，raw/async 是 38.822/34.453 µs。交换 M、N 后，有效输出只有 64 行，每个 128 行 tile 空掉一半，两者变为 39.771/39.395 µs。FLOP 数一样，线程映射的利用率已经不同。<code>512×512×16</code> 同样没有跨 K 块的稳态，14.448→12.855 µs 也不能算预取重叠的收益。</p>
+<p>4096³ 上 raw 与 async 的历史中心值是 23.958 和 24.898 ms，两组三轮范围分别为 22.838–28.531、22.793–32.870 ms，波动大过约 4% 的中心差。async 的历史中位数低于同布局同步双槽的 31.950 ms，但此处缺少独立配对确认。</p>
+<h2 id="硬件参数与-roofline-对-gemm-方案选择的局限">硬件参数与 Roofline 对 GEMM 方案选择的局限</h2>
+<p>这次最难预判的是两种真实变化谁会主导耗时：共享内存读得更顺畅，同时每个线程要用更多寄存器。我后来尝试先用 Roofline 缩小候选范围，但计算强度对假定的流量很敏感，硬件峰值也无法直接给出编译后的寄存器用量。</p>
+<p>我仍想知道，在第一版 GEMM 写好之前，哪些硬件参数足以淘汰不合适的分块，哪些选择只能等有了基准实现，再借助 Nsight 的指令和资源记录判断。如果你在实际设计中用过这样的筛选方法，我很愿意交流。</p>
+<details>
+<summary>源码接口、正确性与复现实验</summary>
+<p>附录里的 <code>bench_mur/</code>、<code>rep_mur/</code> 是私有研究仓库中的定位信息。可公开查看相关 CUDA 内核。<a href="https://github.com/Murmurwkk/cuda-operators">cuda-operators</a></p>
+<h3 id="历史环境与计时口径">历史环境与计时口径</h3>
+<p>RTX 5070 Laptop GPU，8 GB，SM120；构建用 CUDA Toolkit 13.1.115、MSVC 2022，驱动 610.88。另一次环境查询得到运行时 API 13.3。自 CUDA 13 起，Windows 运行时可随显示驱动提供，版本可以不同于构建工具包。原 GEMM 环境取的是 nvcc 与驱动版本，运行时来自另一次核验。<a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART____VERSION.html">CUDA Runtime 版本说明</a></p>
+<p>设备端先预热 20 次，再用 10 次试跑估计每批重复数，目标每批约 20 ms，重复限制在 1–2,000 次。每轮次序打乱跑 30 批，共三轮，复用数据、不清 L2。主机往返单独计入 pageable H2D(A、B)、kernel、D2H(C) 和同步，排除分配、编译与 cuBLAS handle。历史误差棒是三个轮中位数的最小到最大值。</p>
+<p>早期四种实现分别编译为独立的可执行文件，互不链接旧 <code>solve</code>。GPU 任务串行执行，记录起止温度和时钟；未锁频，机器整体功耗状态也未固定。</p>
+<h3 id="接口与正确性覆盖">接口与正确性覆盖</h3>
+<p>输入是连续行主序的 FP32 <code>A[M,K]</code>、<code>B[K,N]</code>，输出 <code>C[M,N]</code>。普通 FP32 FMA，不使用 Tensor Core 或 TF32。验证覆盖这个布局契约，未考察任意 stride、输入输出别名及 NaN/Inf 的特殊语义。</p>
+<p>共享实现放在 <a href="https://github.com/Murmurwkk/cuda-operators/blob/main/gemm/gemm_pipeline.cuh"><code>gemm/gemm_pipeline.cuh</code></a>。两个独立兼容入口各自可编译：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>文件</th><th>保留的参数顺序</th><th>用途</th></tr></thead><tbody><tr><td><code>mulmatrix_let_merged.cu</code></td><td><code>solve(A,B,C,M,N,K)</code></td><td>保留 merged 调用顺序，另有接受 stream 的异步入口</td></tr><tr><td><code>mulmatrix_let2.cu</code></td><td><code>solve(A,B,C,M,K,N)</code></td><td>保留旧实现实际解释的维度顺序；旧函数内部曾交换最后两维</td></tr></tbody></table></div>
+<p>兼容接口 <code>solve</code> 在返回前同步，设备计时则向指定流提交工作，以免每次启动都同步主机。两种入口的尺寸参数排列不同，测试封装分别按各自签名传入 M、N、K，否则类型检查通过也可能算错矩阵。</p>
+<p>旧源码按原样归档并记录 SHA-256，再抽出公共 tile 和消费映射，建立可分步比较的新实现。新代码同时修正边界、寄存器初值、stage 协议并撤掉八列重排。因此旧版与修复版的差不能归给单项优化。</p>
+<p>在 CPU FP64 上逐元素核对了以下 12 组形状，顺序为 M、N、K：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>1×1×0, 1×1×1, 7×13×3, 15×17×15,</span></span>
+<span class="line"><span>63×65×31, 64×64×32, 65×63×33, 127×129×17,</span></span>
+<span class="line"><span>128×128×32 (one aligned, one offset), 129×131×65, 256×256×129</span></span></code></pre>
+<p>每个指针取 0、1、2、3 个 float 偏移；每种形状测随机、全零、正负交替及每个 K 块仅首项非零四种输入。四个性能版本加 let2 兼容入口，共 240 项通过。输出先填 NaN，前后放哨兵，分别发现漏写、非有限值和越界破坏。</p>
+<p>CPU 参考逐项用 double 累加，预算为 <code>1e-6 + 16*FLT_EPSILON*sum(abs(Aik*Bkj))</code>。这是本实验的验收预算。性能实验的大矩阵额外采 257 个固定位置查 FP64，全矩阵与 pedantic FP32 cuBLAS 对比，阈值 <code>3e-4 + 3e-4*abs(reference)</code>。大矩阵完整对照是 GPU 参考，高精度对照是采样。</p>
+<p>四种性能实现各有 48 次 memcheck、48 次 racecheck，均为零错误、零危险，覆盖短 K、多 K 块、偏移及尾块。<code>gemm_8</code> 的两类检测都复跑了一次，也通过。</p>
+<p>旧 <code>mulmatrix_let2.cu</code> 有一条被截断的循环语句，原样编译报 10 个错误，无法作为旧性能基线。原始编译日志、只补类型别名的 merged 失败记录和修复结果分开保存。</p>
+<h3 id="重跑命令与数据位置">重跑命令与数据位置</h3>
+<p>配对修订在 <code>bench_mur/revision_20261115_gemm/</code>，入口 <code>run.py pilot/confirm --suite pipeline</code>；对上限先用 <code>build_caps.py 128</code> 或 <code>168</code>，再按对应 <code>--cap</code> 计时。原生确认共 120 个进程、2,400 个配对块，每个上限配置 16 个进程、320 块。<code>verify.py</code> 独立检查预先列出的条件、正确性结果和进程级区间；派生头文件、编译日志、资源、二进制哈希与结果导出在 <code>results/revision-20261115/</code>。原生二进制另做过带偏移尾块的 memcheck、racecheck 和 synccheck。</p>
+<p>历史脚本在 <code>bench_mur/gemm/</code>，原始失败样本、快照、哈希、环境、逐批 CSV 和反汇编在 <code>rep_mur/blog-rewrite/gemm/</code>。本篇用独立的 <code>pipeline/</code> 子目录存放计时。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="powershell"><code><span class="line"><span style="color:#E6EDF3">.</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">bench_mur</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">gemm</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">build.ps1 </span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3">Variants </span><span style="color:#79C0FF">8</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">9</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">10</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">11</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">12</span></span>
+<span class="line"><span style="color:#E6EDF3">python bench_mur</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">gemm</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">run.py </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">phase check </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">suite pipeline </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">variants </span><span style="color:#79C0FF">8</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">9</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">10</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">11</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">12</span></span>
+<span class="line"><span style="color:#E6EDF3">python bench_mur</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">gemm</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">run.py </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">phase bench </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">suite pipeline </span><span style="color:#FF7B72">--</span><span style="color:#E6EDF3">variants </span><span style="color:#79C0FF">8</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">9</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">10</span><span style="color:#FF7B72">,</span><span style="color:#79C0FF">11</span></span>
+<span class="line"><span style="color:#E6EDF3">python bench_mur</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">gemm</span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3">plot_pipeline.py</span></span></code></pre>
+<p>编号 8 是异步双槽，9 是 XOR 单槽，10 是原始单槽，11 是 XOR 同步双槽，12 只验证旧 let2 接口。换环境要调整工具链并重新构建、验证。</p>
+<p>两篇 GEMM 文章共享的第二批实验包含 10 个变体、240 项计时前正确性检查和 14,400 条计时记录，仍是原始二进制、三轮各 30 批。数据在 <code>rep_mur/blog-rewrite/style-v2/gemm/</code>，独立于第一批汇总。</p>
+<p>从 NCU 报告可以按 SASS 地址定位额外 wavefront，核对 bank 冲突计数和实测活跃 warp 占比。每个 SM 可容纳的线程块数上限则按寄存器、共享内存等资源推算。本实验没有分别计量复制、等待和计算各占多少周期，所得耗时也只覆盖这张未锁频显卡上的独立 GEMM，未涉及 TMA、其他 GPU 或生产模型。</p>
+<p>汇编、NCU 报告和 CSV 在 <code>rep_mur/blog-rewrite/style-v3/profiling/</code>。<code>profile_static.py</code> 从计时二进制取 PTX/SASS，<code>collect_ncu.ps1</code> 串行采集，<code>read_ncu.py</code> 保留原指标名及单位，<code>plot_profile.py</code> 从导出数据出图，二进制和导出报告均记录哈希。</p>
+</details>
+<details class="references">
+<summary>参考文献</summary>
+<ol>
+<li><a href="https://docs.nvidia.com/cuda/archive/12.6.0/cuda-c-programming-guide/index.html#shared-memory-5-x">CUDA 共享内存说明</a></li>
+<li><a href="https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async">PTX 的 cp.async 语义</a></li>
+<li><a href="https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html">Nsight Compute 指标与 SourceCounters</a></li>
+<li><a href="https://docs.nvidia.com/cuda/archive/12.9.1/cuda-c-programming-guide/index.html">CUDA 对寄存器限定符的说明</a></li>
+<li><a href="https://github.com/Murmurwkk/cuda-operators">cuda-operators</a></li>
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART____VERSION.html">CUDA Runtime 版本说明</a></li>
+<li><a href="https://github.com/Murmurwkk/cuda-operators/blob/main/gemm/gemm_pipeline.cuh"><code>gemm/gemm_pipeline.cuh</code> (Murmurwkk/cuda-operators, main)</a></li>
+</ol>
+</details></div> </article> <aside class="toc toc-side" aria-label="目录"> <p class="toc-title">目录</p> <ol> <li><a href="#128-个线程对-12864-gemm-输出块的分工">128 个线程对 128×64 GEMM 输出块的分工</a></li><li><a href="#xor-布局对共享内存标量读取-bank-冲突的影响">XOR 布局对共享内存标量读取 bank 冲突的影响</a></li><li><a href="#共享内存双缓冲的搬运同步与计算顺序">共享内存双缓冲的搬运、同步与计算顺序</a></li><li><a href="#非整块矩阵的补零地址对齐与写回边界">非整块矩阵的补零、地址对齐与写回边界</a></li><li><a href="#从普通单缓冲到-xor-布局与异步双缓冲">从普通单缓冲到 XOR 布局与异步双缓冲</a></li><li><a href="#四种-gemm-实现的配对耗时">四种 GEMM 实现的配对耗时</a></li><li><a href="#短-k-与大方阵上的双缓冲耗时">短 K 与大方阵上的双缓冲耗时</a></li><li><a href="#硬件参数与-roofline-对-gemm-方案选择的局限">硬件参数与 Roofline 对 GEMM 方案选择的局限</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="返回顶部" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>

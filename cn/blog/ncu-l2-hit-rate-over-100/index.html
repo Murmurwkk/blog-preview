@@ -1,0 +1,220 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="Nsight Compute 在两个 kernel 上报出了超过 100% 的 L2 命中率。保留底层计数的后续采样表明，异常报告里的命中扇区数确实多于查询总数。GB206 后端生成的离线计划把两者安排在不同采样轮次，实卡上究竟是什么活动改变了计数，现有报告还无法确定。"><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="Nsight Compute 的 L2 命中率越界：原始计数与跨轮采样核查"><meta property="og:description" content="Nsight Compute 在两个 kernel 上报出了超过 100% 的 L2 命中率。保留底层计数的后续采样表明，异常报告里的命中扇区数确实多于查询总数。GB206 后端生成的离线计划把两者安排在不同采样轮次，实卡上究竟是什么活动改变了计数，现有报告还无法确定。"><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/cn/blog/ncu-l2-hit-rate-over-100/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/cn/blog/ncu-l2-hit-rate-over-100/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/ncu-l2-hit-rate-over-100/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/ncu-l2-hit-rate-over-100/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>Nsight Compute 的 L2 命中率越界：原始计数与跨轮采样核查</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk 首页"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="主导航"> <a href="/blog-preview/" aria-label="首页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>首页</span>  </a><a href="/blog-preview/cn/blog/" aria-label="博客" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>博客</span>  </a><a href="/blog-preview/about/" aria-label="关于">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>关于</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="知乎主页"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>知乎</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub 主页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="切换明暗主题"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> 预览站包含标为 <span lang="en" class="draft-label">draft</span> 的文章。 </aside> <main> <div class="article-layout has-toc"> <article class="article" data-draft-preview="true"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="research">研究文章</p> <nav class="language-switch" aria-label="阅读语言"> <a lang="en" hreflang="en" href="/blog-preview/blog/ncu-l2-hit-rate-over-100/">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/ncu-l2-hit-rate-over-100/" aria-current="page">简体中文</a> </nav> </div> <h1>Nsight Compute 的 L2 命中率越界：原始计数与跨轮采样核查</h1> <p class="article-description">Nsight Compute 在两个 kernel 上报出了超过 100% 的 L2 命中率。保留底层计数的后续采样表明，异常报告里的命中扇区数确实多于查询总数。GB206 后端生成的离线计划把两者安排在不同采样轮次，实卡上究竟是什么活动改变了计数，现有报告还无法确定。</p> <div class="tag-row"> <span lang="en" class="draft-label draft-badge">draft</span> <a class="tag" href="/blog-preview/cn/tags/CUDA/">#CUDA</a><a class="tag" href="/blog-preview/cn/tags/Nsight%20Compute/">#Nsight Compute</a><a class="tag" href="/blog-preview/cn/tags/L2%20cache/">#L2 cache</a><a class="tag" href="/blog-preview/cn/tags/performance%20measurement/">#performance measurement</a> </div> <details class="toc toc-inline"> <summary>目录 <span>5 节</span></summary> <ol> <li><a href="#原始-ncu-报告中的越界-l2-命中率">原始 NCU 报告中的越界 L2 命中率</a></li><li><a href="#命中扇区数超过总扇区数">命中扇区数超过总扇区数</a></li><li><a href="#gb206-计数器的分轮采集与实机重放">GB206 计数器的分轮采集与实机重放</a></li><li><a href="#512-个线程块下仍出现越界命中率">512 个线程块下仍出现越界命中率</a></li><li><a href="#重复采样的局限与尚未定位的跨轮差异">重复采样的局限与尚未定位的跨轮差异</a></li> </ol> </details> </header> <div class="prose"><p>我用 Nsight Compute 分析一个 Softmax kernel 时，报告里的 L2 命中次数竟是查询总数的约 <strong>102%</strong>，换成另一个注意力 kernel，命中率仍有约 101%。两个程序都算对了，工具也正常退出，因此我从最早能读到的原始报告开始，检查这些额外的命中究竟在哪一步出现。两条记录分别来自 <a href="/blog-preview/cn/blog/kv-cache-scheduling/">INT8 KV 缓存实验</a>和<a href="/blog-preview/cn/blog/online-softmax/">在线 Softmax Attention 实验</a>。</p>
+<p>我从原始报告追到计数器后端，又分两批各采了 60 份报告。在保留底层计数的越界样本里，命中扇区数确实超过了查询扇区总数。同一批扇区查询中，命中数不可能多于查询总数。为查明两项计数能否来自不同轮次，我把它们的底层依赖一起交给 GB206 后端。它生成的离线计划把两组依赖安排在不同的隔离轮次。</p>
+<h2 id="原始-ncu-报告中的越界-l2-命中率">原始 NCU 报告中的越界 L2 命中率</h2>
+<p>我用 NVIDIA 的 Python Report Interface 直接读取 <code>.ncu-rep</code>，两项原生指标在导出 CSV 之前就已经超过 100%。CSV 的变化只有小数位数，因而可以排除导出、单位换算和绘图这三道处理。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>原始输入</th><th>采集的 kernel</th><th align="right">原始报告命中率（%）</th><th align="right">grid / block</th><th align="right">带 profiler 的耗时</th><th align="right">应用重放轮次</th></tr></thead><tbody><tr><td>KV，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">H=8</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">8</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">N=4096</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">d=64</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">64</span></span></span></span>，简单 INT8 路径</td><td>原地 Softmax</td><td align="right">101.83719193427932</td><td align="right">8 / 256</td><td align="right">5.408 µs</td><td align="right">3</td></tr><tr><td>Online，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo>=</mo><mn>128</mn></mrow><annotation encoding="application/x-tex">M=128</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">M</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">128</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>2048</mn></mrow><annotation encoding="application/x-tex">N=2048</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2048</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">d=64</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">64</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mi>q</mi></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">B_q=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0502em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></td><td>融合注意力</td><td align="right">101.12263785909248</td><td align="right">128 / 128</td><td align="right">249.216 µs</td><td align="right">3</td></tr></tbody></table></div>
+<p>两条记录都用了应用重放（application replay）：工具为每一轮重新运行整个应用，并在各轮采集不同的计数器。前一个 kernel 约 5 µs，后一个却接近 250 µs，明显超过约 20 µs 的稳态参考时长。既然后者同样越界，就不能只用工作过短来解释这两条记录。表中的时长只描述当次带 profiler 的采集，正式性能比较有另外的无插桩计时。</p>
+<p>Softmax 会原地覆盖输入，我因此查了一遍应用重放时各个 kernel 的调用顺序。如果第二轮把第一轮写出的概率当成分数，输入便会改变。实际的 KV 入口每次先做 QK，重新生成分数，再运行 Softmax 和 PV。在线注意力则每轮读取固定的 Q、K、V。两条路径都没有读回上轮的概率作为本轮输入。</p>
+<h2 id="命中扇区数超过总扇区数">命中扇区数超过总扇区数</h2>
+<p>NVIDIA 工程师给出了全局 L2 命中率的定义。这个定义指明了下一轮需要一起保留哪些计数，才能把工具报出的百分比逐项复算。</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>r</mi><mo>=</mo><mn>100</mn><mfrac><mtext mathvariant="monospace">lts__t_sectors_lookup_hit.avg</mtext><mtext mathvariant="monospace">lts__t_sectors.avg</mtext></mfrac><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">r=100\frac{\texttt{lts\_\_t\_sectors\_lookup\_hit.avg}}
+{\texttt{lts\_\_t\_sectors.avg}}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1963em;vertical-align:-0.9082em;"></span><span class="mord">100</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2881em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord texttt">lts__t_sectors.avg</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord texttt">lts__t_sectors_lookup_hit.avg</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.9082em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">.</span></span></span></span></span>
+<p>L2 用 32 字节的扇区（sector）计数。上式覆盖全局 L2 扇区查询，来源包括 SM 的 L1TEX 单元以及其他请求方。如果两项指标来自不同的重放轮次，它们观测的就可能是不同执行；GPU 上其他引擎的活动也可能影响共享资源上的计数。<a href="https://forums.developer.nvidia.com/t/l2-hit-rate-more-than-100/244570">NVIDIA 工程师对该指标的说明</a></p>
+<p>原始报告只记录了总共重放三轮，既没有这两个底层数，也没有说明各自在哪一轮采集。因此第一批诊断仍使用原二进制、原输入和相同的完整入口，应用仍预热 20 次，只改变所请求的指标组合。新配置加入全局命中数 H、未命中数 M 和总数 T 的 <code>.sum</code> 与 <code>.avg</code>，也加入限定 L1TEX 来源的对应计数。以下两行取自全局 <code>.sum</code>。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>采集</th><th align="right">命中 H</th><th align="right">未命中 M</th><th align="right">总数 T</th><th align="right">重算 100H/T</th><th align="right">工具原生值</th></tr></thead><tbody><tr><td>第一批任务 19，在线注意力</td><td align="right">1,424,040</td><td align="right">14</td><td align="right">1,383,018</td><td align="right">102.966121916%</td><td align="right">102.966122%</td></tr><tr><td>第一批任务 53，KV Softmax</td><td align="right">13,742</td><td align="right">0</td><td align="right">13,614</td><td align="right">100.940208609%</td><td align="right">100.940209%</td></tr></tbody></table></div>
+<p>按公式代入全局 <code>.sum</code>，计算值与原生百分比在导出精度内一致，改用 <code>.avg</code> 得到的比率相同。第一行的命中扇区就比总数多了 <strong>41,022 个</strong>。如果分子和分母来自同一批查询，命中数至多等于总数。因此需要解释的是两项计数各自来自哪一次执行。</p>
+<p>若改用 H+M 作分母，第一行几乎为 100%，第二行恰好是 100%。因为 H、M 非负，这样构造的百分比必定落在 0～100% 之内，也就无法检验独立采到的 T 是否与 H 一致。按 L1TEX 来源筛选可以缩小流量范围，但仍需核对分量是否描述同一组查询。</p>
+<h2 id="gb206-计数器的分轮采集与实机重放">GB206 计数器的分轮采集与实机重放</h2>
+<p>我对两种原始算例分别使用六种指标配置，每轮随机打乱这 12 个组合的顺序，每个组合用五个独立进程各采一次，合计 60 份报告。KV 入口会捕获三个 kernel，在线入口捕获一个，因此留下 120 条 kernel 记录。这五次是定位问题的重复观测，不能据此推算整个 GPU 上越界的发生概率。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>配置</th><th>请求内容</th><th align="right">实际应用重放轮次</th></tr></thead><tbody><tr><td>原始</td><td>原报告的 11 个指标名，保留默认附加后缀</td><td align="right">3</td></tr><tr><td>关闭附加后缀</td><td>同一份列表，关闭附加后缀</td><td align="right">3</td></tr><tr><td>Pct only</td><td>只要原生全局命中率</td><td align="right">3</td></tr><tr><td>Global H/M/T</td><td>原生百分比及全局 H、M、T</td><td align="right">4</td></tr><tr><td>Tex</td><td>只要来自 L1TEX 请求的 H、M、T</td><td align="right">4</td></tr><tr><td>Combined</td><td>来源限定和全局两组计数，加原生百分比</td><td align="right">4</td></tr></tbody></table></div>
+<p><img alt="两种原始工作负载在请求原生命中率的五种配置下，各自五次重复采集的全部数值" loading="lazy" decoding="async" fetchpriority="auto" width="1980" height="827" src="/blog-preview/_astro/stage1-native-hit-rate.CYp1vLET_ZxWxxM.webp" ></p>
+<p><em>图 1　每个点代表一次独立采集。同一组合的五个点在水平方向略微错开，以免重叠。红点超过了 100% 的虚线。Tex 配置只请求限定来源的计数，因此图中没有它的原生全局命中率。</em></p>
+<p>在线注意力只请求百分比时，五次里有四次超过 100%。关闭附加后缀的一次采集甚至到了约 121%；那组配置没有请求 H、M、T，已无法还原这个样本的分量。只保留一个派生指标，依然可能需要多轮底层采集。</p>
+<p>要确定一次采集是否足以取得分子和分母，我用 PerfWorks 主机 API 调用 Nsight Compute 2026.2.1 附带的 <code>nvperf_host.dll</code>，查询虚拟芯片 <code>gb206</code>。对每个指标，我把全部原始依赖放入同一个 pass group，指定隔离采集，由后端决定需要几轮。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>交给后端的请求</th><th align="right">原始依赖数</th><th align="right">规划出的隔离采样轮次</th></tr></thead><tbody><tr><td>H</td><td align="right">1</td><td align="right">1</td></tr><tr><td>T</td><td align="right">1</td><td align="right">1</td></tr><tr><td>H + T</td><td align="right">2</td><td align="right">2</td></tr><tr><td>H + M + T</td><td align="right">3</td><td align="right">3</td></tr><tr><td>原生命中率</td><td align="right">2，恰好对应 H 与 T</td><td align="right">2</td></tr></tbody></table></div>
+<p>我将 H 和 T 一起提交，后端仍为它们分配了不同的采样轮次。这次查询是离线进行的，没有加载 CUDA 驱动或创建 GPU 上下文，也拿不到实卡当时可用的计数器，因此表中能够确认的是这个版本的后端怎样为 GB206 排程。现场的 pct-only 报告实际用了三轮，目前的报告接口还给不出“某个依赖在哪一轮采到”的映射。报告列出的 profiler 预热轮次为零，单凭总轮数仍无法确定额外一轮实际执行了什么。</p>
+<h2 id="512-个线程块下仍出现越界命中率">512 个线程块下仍出现越界命中率</h2>
+<p>原 KV 算例只有八个线程块。若越界只出现在 GPU 工作量过小的时候，扩大同一 Softmax 的网格后就应看不到它。我为此做了第二批实验，在独立程序里固定 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>4096</mn></mrow><annotation encoding="application/x-tex">N=4096</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4096</span></span></span></span>，把注意力头数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi></mrow><annotation encoding="application/x-tex">H</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span></span></span></span> 依次设为 8、36、144、512。每个头仍由一个 CUDA 线程块（CTA）处理。</p>
+<p>在采集前，我先核对独立程序里跑的还是同一段机器代码。去掉地址与编码注释、统一空格以后，新旧 Softmax 的 <strong>504 条 SASS 指令逐条相同</strong>。主扫描和额外的边界样例 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>3</mn><mo separator="true">,</mo><mi>N</mi><mo>=</mo><mn>257</mn></mrow><annotation encoding="application/x-tex">H=3,N=257</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord">3</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">257</span></span></span></span> 在六个进程中产生七个输出，全都通过独立 FP64 参考、逐行求和、输入位模式和越界保护检查。正式采集时，每次重放也会记录 GPU 输入指纹和校验输出。</p>
+<p>第二批使用 pct-only、global、tex 三种配置，每格五次，共 60 份报告。重放导致的 220 次应用启动全部通过输入、输出与边界保护检查。</p>
+<p><img alt="独立 Softmax 程序在 8、36、144、512 个头时的全局原生命中率，各项显示五次重复" loading="lazy" decoding="async" fetchpriority="auto" width="1584" height="827" src="/blog-preview/_astro/stage2-native-hit-rate.C2vFtKmm_1W945l.webp" ></p>
+<p><em>图 2　每个头由一个线程块处理，因此横向比较的也是网格大小。每个点来自一次带 profiler 的采集，图中只列出请求了原生全局命中率的两种配置。</em></p>
+<p>144 个块和 512 个块的报告都再次记录了越界。即使在 512 个块时，带 profiler 的 Softmax 已运行约 46～65 µs，远超过约 20 µs 的参考时长，采到的命中率仍可能高于 100%。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>诊断观测</th><th align="right">原生命中率（%）</th></tr></thead><tbody><tr><td>第一批，在线注意力，关闭附加后缀的一个样本</td><td align="right">120.544593</td></tr><tr><td>第二批，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>144</mn></mrow><annotation encoding="application/x-tex">H=144</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">144</span></span></span></span>，global</td><td align="right">102.049219</td></tr><tr><td>第二批，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>512</mn></mrow><annotation encoding="application/x-tex">H=512</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">512</span></span></span></span>，global</td><td align="right">100.553587</td></tr><tr><td>第二批，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>512</mn></mrow><annotation encoding="application/x-tex">H=512</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">512</span></span></span></span>，pct-only</td><td align="right">100.926544</td></tr></tbody></table></div>
+<p>增加头数也增加了工作量和数据占用，并延长了执行时间。独立程序在进入 Softmax 前还会做一次设备内拷贝来恢复 logits，再将输入拷回主机校验。因此它的缓存访问历史与原来先算 QK 再运行 Softmax 的入口不同。独立程序的部分报告测得 70%～80% 的全局 L2 命中率。两种程序在进入 Softmax 时的缓存条件不同，这组数值无法替换原图中接近 100% 的读数，也不足以说明原算子的缓存表现变差。</p>
+<h2 id="重复采样的局限与尚未定位的跨轮差异">重复采样的局限与尚未定位的跨轮差异</h2>
+<p>如果条件稳定、随机误差无偏，增加独立重复可以降低均值的不确定性。遇到运行中缓慢漂移，博客的正式计时用交错配对、A/A 对照和独立进程复核。这次需要检验的却是分子和分母是否对应于同一批查询。即使将几次超过 100% 的读数平均后得到 99%，也不能由此恢复那一批查询的命中数和总数。</p>
+<p>我能直接核实的是原生报告已经越界，保存了分量的异常报告中有 H>T，工具用 100H/T 得出了那个百分比。算子本身通过正确性检查，且保留同样 SASS 的独立程序可以再次观察到异常。另一层证据来自调度：同版 GB206 后端把 H、T 分到两个隔离轮次，实卡仅请求百分比也实际重放了三轮。这表明跨次执行组合计数是一个可能的解释。</p>
+<p><a href="/blog-preview/cn/blog/kv-cache-scheduling/">KV 缓存文章</a>和<a href="/blog-preview/cn/blog/online-softmax/">在线 Softmax 文章</a>保留最初的读数并标为无效。独立的数值校验和无 profiler 的配对计时仍可使用。今后要由命中率推算未命中量或 DRAM 流量，我会先留下匹配的原始计数、单位、实际重放轮次以及重复观测的分布。<a href="https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#range-and-precision">NVIDIA Profiling Guide 对取值范围和精度的说明</a></p>
+<p>目前还缺少实卡报告里每个原始计数器和采样轮次的对应关系。有了它，才能继续查两轮之间发生了什么。GPU 上其他引擎的活动、缓存状态、采集边界和工具本身的行为都可能影响计数，现有数据还不足以区分它们。</p>
+<details>
+<summary>采样环境、精确读数与原始报告位置</summary>
+<p>测试用 RTX 5070 Laptop GPU，GB206，计算能力 <code>sm_120</code>。软件是 CUDA 13.1 和 Nsight Compute 2026.2.1。全部采集采用应用重放，设置 <code>--cache-control none</code> 和 <code>--clock-control none</code>，应用先预热 20 次。两批实验都按事先冻结的计划串行执行，期间沿用原有的显示、驱动和电源设置。实验前后保存了功率与频率快照，运行过程没有连续轨迹。计数器采集与正式计时分开。</p>
+<p>在 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>512</mn></mrow><annotation encoding="application/x-tex">H=512</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">512</span></span></span></span> 时，带 profiler 的 Softmax 运行了 45.760～65.344 µs。对第一批的任务 19，改用有界公式 100H/(H+M) 得到 99.999017%。两份原始报告的完整百分比见首表。</p>
+<p>私有研究工作区的 <code>bench_mur/l2_hit_rate_investigation/README.md</code> 记录了源文件、命令、编译与 SASS 校验、120 份 CSV 导出及逐次检查、离线调度查询和绘图入口。完整 <code>.ncu-rep</code> 保存在本地归档中，另存 SHA-256。小型证据包保留了原始导出字节和清单。</p>
+</details>
+<details class="references">
+<summary>参考文献</summary>
+<ol>
+<li><a href="https://forums.developer.nvidia.com/t/l2-hit-rate-more-than-100/244570">NVIDIA 工程师对该指标的说明</a></li>
+<li><a href="https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#range-and-precision">NVIDIA Profiling Guide 对取值范围和精度的说明</a></li>
+</ol>
+</details></div> </article> <aside class="toc toc-side" aria-label="目录"> <p class="toc-title">目录</p> <ol> <li><a href="#原始-ncu-报告中的越界-l2-命中率">原始 NCU 报告中的越界 L2 命中率</a></li><li><a href="#命中扇区数超过总扇区数">命中扇区数超过总扇区数</a></li><li><a href="#gb206-计数器的分轮采集与实机重放">GB206 计数器的分轮采集与实机重放</a></li><li><a href="#512-个线程块下仍出现越界命中率">512 个线程块下仍出现越界命中率</a></li><li><a href="#重复采样的局限与尚未定位的跨轮差异">重复采样的局限与尚未定位的跨轮差异</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="返回顶部" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>

@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="面向入门读者系统讲解 Git 与 Docker 的底层心智模型，涵盖 Git 的三区流转、对象图、分支合并与排错恢复机制，以及 Docker 的内核隔离原语、分层镜像、数据卷与 GPU 容器边界。"><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="Git 与 Docker 核心概念入门：内容寻址版本图与容器隔离原理"><meta property="og:description" content="面向入门读者系统讲解 Git 与 Docker 的底层心智模型，涵盖 Git 的三区流转、对象图、分支合并与排错恢复机制，以及 Docker 的内核隔离原语、分层镜像、数据卷与 GPU 容器边界。"><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/cn/blog/git-docker-dev-tools-intro/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/cn/blog/git-docker-dev-tools-intro/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/git-docker-dev-tools-intro/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/git-docker-dev-tools-intro/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>Git 与 Docker 核心概念入门：内容寻址版本图与容器隔离原理</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk 首页"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="主导航"> <a href="/blog-preview/" aria-label="首页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>首页</span>  </a><a href="/blog-preview/cn/blog/" aria-label="博客" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>博客</span>  </a><a href="/blog-preview/about/" aria-label="关于">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>关于</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="知乎主页"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>知乎</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub 主页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="切换明暗主题"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> 预览站包含标为 <span lang="en" class="draft-label">draft</span> 的文章。 </aside> <main> <div class="article-layout has-toc"> <article class="article" data-draft-preview="true"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="study-note">知识文章</p> <nav class="language-switch" aria-label="阅读语言"> <a lang="en" hreflang="en" href="/blog-preview/blog/git-docker-dev-tools-intro/">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/git-docker-dev-tools-intro/" aria-current="page">简体中文</a> </nav> </div> <h1>Git 与 Docker 核心概念入门：内容寻址版本图与容器隔离原理</h1> <p class="article-description">面向入门读者系统讲解 Git 与 Docker 的底层心智模型，涵盖 Git 的三区流转、对象图、分支合并与排错恢复机制，以及 Docker 的内核隔离原语、分层镜像、数据卷与 GPU 容器边界。</p> <div class="tag-row"> <span lang="en" class="draft-label draft-badge">draft</span> <a class="tag" href="/blog-preview/cn/tags/guide/">#入门</a><a class="tag" href="/blog-preview/cn/tags/git/">#git</a><a class="tag" href="/blog-preview/cn/tags/docker/">#docker</a><a class="tag" href="/blog-preview/cn/tags/devops/">#devops</a><a class="tag" href="/blog-preview/cn/tags/containers/">#containers</a> </div> <details class="toc toc-inline"> <summary>目录 <span>3 节</span></summary> <ol> <li><a href="#第一部分git-与内容寻址对象图">第一部分：Git 与内容寻址对象图</a></li><li><a href="#第二部分docker-与操作系统级容器隔离">第二部分：Docker 与操作系统级容器隔离</a></li><li><a href="#速查参考">速查参考</a></li> </ol> </details> </header> <div class="prose"><p>现代软件开发与科研实验几乎都离不开两项基础设施工具：用 <strong>Git</strong> 管理代码演进与多人协作，用 <strong>Docker</strong> 打包并隔离运行环境。如果只是零散背诵命令，一旦遇到合并冲突、误删提交、镜像体积膨胀或容器里找不到 GPU，就会立刻无从下手。这篇导读不堆砌命令速查表，而是聚焦两套工具最核心的底层模型：前半部分讲清 Git 的三区流转、内容寻址对象图、分支合并与安全恢复机制；后半部分讲清 Docker 的 Linux 内核隔离原理、分层镜像缓存、持久化挂载、多阶段构建以及 GPU 容器的驱动边界。</p>
+<p>如需回顾容器背后的进程、文件系统与虚拟环境等操作系统前置知识，可结合阅读<a href="/blog-preview/cn/blog/cs-foundations-408-se-ai/">计算机基础全景导读</a>。文中的少量计算步骤标注为“（计算值）”。</p>
+<h2 id="第一部分git-与内容寻址对象图">第一部分：Git 与内容寻址对象图</h2>
+<p>Git 并不是按顺序记录一串文件补丁（Diff），它的本质是一个<strong>按内容哈希寻址的快照文件系统</strong>：每次提交都会把整个仓库此刻的状态保存为不可变快照，并用指针连成一张有向无环图（DAG）。</p>
+<h3 id="本地仓库的三个区域">本地仓库的三个区域</h3>
+<p>本地修改从编辑到入库，按顺序经过三个区域：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart LR</span></span>
+<span class="line"><span style="color:#E6EDF3">    W[工作区 Working Directory&#x3C;br/>硬盘上正在编辑的文件] -->|git add| S[暂存区 Staging Area / Index&#x3C;br/>挑选准备纳入下次提交的改动]</span></span>
+<span class="line"><span style="color:#E6EDF3">    S -->|git commit| R[本地仓库 .git&#x3C;br/>不可变的提交历史图]</span></span>
+<span class="line"><span style="color:#E6EDF3">    R -->|git push| RM[远程仓库 Remote&#x3C;br/>团队共享协作副本]</span></span>
+<span class="line"><span style="color:#E6EDF3">    RM -.->|git fetch / pull| R</span></span></code></pre>
+<ul>
+<li><strong>工作区（Working Directory）</strong>：硬盘上直接可见、正在编辑的项目目录。</li>
+<li><strong>暂存区（Staging Area / Index）</strong>：刻意设置的“打包缓冲区”，允许你把一次修复和顺手改动拆开提交，保持每次提交职责单一。</li>
+<li><strong>本地仓库（<code>.git</code>）</strong>：以哈希值永久存储全部历史快照的数据库。</li>
+</ul>
+<h3 id="四类对象分支与-head-指针">四类对象、分支与 HEAD 指针</h3>
+<p>打开 <code>.git/objects/</code> 底层，Git 只靠四类核心对象组织整个历史，每个对象都由其内容的加密哈希唯一标识：</p>
+<ul>
+<li><strong>Blob</strong>：单个文件的纯内容快照（不包含文件名）。</li>
+<li><strong>Tree</strong>：目录结构对象，把文件名和权限映射到对应的 Blob 或子 Tree 哈希。</li>
+<li><strong>Commit</strong>：提交对象，指向一个根目录 Tree（即整库快照），并记录父提交哈希、作者信息与提交说明。</li>
+<li><strong>Tag</strong>：指向某个固定 Commit 的静态标签（常用于版本发布）。</li>
+</ul>
+<p>理解对象模型后，<strong>分支（Branch）</strong>就不再神秘——它只是一个占用几十字节、可随新提交向前移动的<strong>指针</strong>，里面只写着当前最新 Commit 的哈希值。因此创建和切换分支几乎是瞬时完成的。<strong><code>HEAD</code></strong> 则是一个特殊指针，指向你当前检出的分支（若直接检出某个历史哈希，则进入“游离 HEAD”状态）。</p>
+<h3 id="merge-与-rebase-的本质区别">Merge 与 Rebase 的本质区别</h3>
+<p>当功能分支与主分支 <code>main</code> 各自向前推进后，整合历史有两种方式：</p>
+<ul>
+<li><strong><code>git merge</code>（合并）</strong>：创建一个拥有两个父节点的合并提交（如果 <code>main</code> 期间没有新提交，则直接快进指针），完整保留分叉与汇合的真实时间拓扑。</li>
+<li><strong><code>git rebase</code>（变基）</strong>：把当前分支的提交依次在最新 <code>main</code> 顶端重新演练一遍，生成新的提交哈希，让历史呈现干净的直线。</li>
+</ul>
+<p>区分二者的黄金守则非常明确：<strong>本地尚未推送的私有分支可以放心 <code>rebase</code> 整理历史；已经推送到公共共享分支的提交不要 <code>rebase</code></strong>，否则改写公共哈希会迫使所有协作者处理历史分叉冲突。</p>
+<h3 id="安全回退reflog-与二分排错">安全回退、Reflog 与二分排错</h3>
+<p>掌握指针视角后，Git 的撤销与排错工具非常直观：</p>
+<ul>
+<li><strong><code>git revert &#x3C;commit></code></strong>：生成一个“反向抵消原改动”的<strong>新提交</strong>。因为不改写历史，它是共享分支上最安全的回退手段。</li>
+<li><strong><code>git reset</code></strong>：把当前分支指针往回拨。<code>--soft</code> 保留暂存区与工作区；<code>--mixed</code>（默认）清空暂存区但保留工作区修改；<code>--hard</code> 连工作区改动一并丢弃。</li>
+<li><strong><code>git reflog</code></strong>：本地记录了 <code>HEAD</code> 每一次移动轨迹。即使误执行了 <code>reset</code> 或 <code>rebase</code>，只要还没触发垃圾回收，就能从 <code>reflog</code> 里找回原提交哈希并完整恢复。</li>
+<li><strong><code>git bisect</code></strong>：当某个历史版本曾正常运行、最新版本却出现故障时，<code>bisect</code> 会在提交图上自动执行二分查找。在跨越 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>1,024</mn></mrow><annotation encoding="application/x-tex">N = 1{,}024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">024</span></span></span></span> 次提交的区间里，最多只需 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">⌈</mo><msub><mrow><mi>log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mn>1,024</mn><mo stretchy="false">⌉</mo><mo>=</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">\lceil \log_2 1{,}024 \rceil = 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">⌈</span><span class="mop"><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.207em;"><span style="top:-2.4559em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2441em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">024</span><span class="mclose">⌉</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> 次测试即可锁定引入故障的精确提交（计算值）；配合 <code>git bisect run &#x3C;测试脚本></code> 还能全程自动定位。</li>
+</ul>
+<h2 id="第二部分docker-与操作系统级容器隔离">第二部分：Docker 与操作系统级容器隔离</h2>
+<p>“在我电脑上明明能跑”的根源在于，程序运行不仅依赖自身代码，还依赖底层系统库（如 <code>glibc</code>）、编译器版本、语言依赖包和目录结构。Docker 把这些用户态环境打包成可移植的<strong>镜像（Image）</strong>，并在隔离的<strong>容器（Container）</strong>进程中运行。</p>
+<h3 id="容器与虚拟机的核心差异">容器与虚拟机的核心差异</h3>
+<p><strong>虚拟机（VM）</strong>通过 Hypervisor 模拟整套硬件，每个虚拟机都要独立启动一个完整的客户操作系统内核，开销较大。<strong>Linux 容器</strong>则轻量化得多：同一台宿主机上的所有容器<strong>共享同一个宿主机 Linux 内核</strong>，依靠内核自带的两项机制实现隔离：</p>
+<ul>
+<li><strong>Linux Namespaces（命名空间）</strong>：为每个容器构造独立的系统视图，包括进程树（<code>PID</code>）、网卡与端口（<code>NET</code>）、文件挂载点（<code>MNT</code>）、主机名（<code>UTS</code>）、进程间通信（<code>IPC</code>）和用户映射（<code>USER</code>）。在容器内部，主应用看到自己就是 1 号进程（PID 1）。</li>
+<li><strong>cgroups（控制组）</strong>：对容器可用的 CPU 配额、内存上限和磁盘 I/O 做硬性限制，防止单个失控容器拖垮整台宿主机。</li>
+</ul>
+<p><em>（在 macOS 和 Windows 上，Docker Desktop 会在后台透明运行一个轻量级 Linux 虚拟机来提供上述 Linux 内核能力。）</em></p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart TB</span></span>
+<span class="line"><span style="color:#E6EDF3">    subgraph VM[虚拟机架构]</span></span>
+<span class="line"><span style="color:#E6EDF3">        VApp[应用与依赖库] --> VOS[独立客户机 OS 内核] --> Hyp[Hypervisor 虚拟化层] --> H1[宿主机 OS 与硬件]</span></span>
+<span class="line"><span style="color:#E6EDF3">    end</span></span>
+<span class="line"><span style="color:#E6EDF3">    subgraph CTR[容器架构]</span></span>
+<span class="line"><span style="color:#E6EDF3">        CApp1[容器 A：应用与用户态库] --> RT[容器运行时]</span></span>
+<span class="line"><span style="color:#E6EDF3">        CApp2[容器 B：应用与用户态库] --> RT</span></span>
+<span class="line"><span style="color:#E6EDF3">        RT --> K[共享宿主机 Linux 内核&#x3C;br/>Namespaces + cgroups]</span></span>
+<span class="line"><span style="color:#E6EDF3">    end</span></span></code></pre>
+<h3 id="镜像分层与-overlayfs-缓存">镜像分层与 OverlayFS 缓存</h3>
+<p><strong>Docker 镜像</strong>由 <code>Dockerfile</code> 中的指令（<code>FROM</code>、<code>RUN</code>、<code>COPY</code>、<code>ENV</code>、<code>CMD</code>）构建而成。每条修改文件系统的指令都会生成一层<strong>只读镜像层</strong>。启动容器时，联合文件系统（通常为 <strong>OverlayFS</strong>）把所有只读层叠在一起，只在最顶层盖上一层薄薄的<strong>可写容器层</strong>（写时复制）。</p>
+<p>理解分层缓存后，就能写出构建极快的 <code>Dockerfile</code>——核心原则是<strong>把变化频率低的依赖安装步骤放在前面，把频繁改动的业务源码放在最后</strong>：</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#FF7B72">FROM</span><span style="color:#E6EDF3"> python:3.12-slim</span></span>
+<span class="line"><span style="color:#FF7B72">WORKDIR</span><span style="color:#E6EDF3"> /app</span></span>
+<span class="line"><span style="color:#8B949E"># 依赖列表很少改动 -> 后续改代码时直接复用此层缓存</span></span>
+<span class="line"><span style="color:#FF7B72">COPY</span><span style="color:#E6EDF3"> requirements.txt .</span></span>
+<span class="line"><span style="color:#FF7B72">RUN</span><span style="color:#E6EDF3"> pip install --no-cache-dir -r requirements.txt</span></span>
+<span class="line"><span style="color:#8B949E"># 业务源码变动频繁 -> 放在最后一层</span></span>
+<span class="line"><span style="color:#FF7B72">COPY</span><span style="color:#E6EDF3"> . .</span></span>
+<span class="line"><span style="color:#FF7B72">CMD</span><span style="color:#E6EDF3"> [</span><span style="color:#A5D6FF">"python"</span><span style="color:#E6EDF3">, </span><span style="color:#A5D6FF">"main.py"</span><span style="color:#E6EDF3">]</span></span></code></pre>
+<p>如果把 <code>COPY . .</code> 写在 <code>pip install</code> 前面，每次只改一行注释都会让缓存失效，导致整套依赖反复重装。</p>
+<p>此外，在追求可复现构建时，不要依赖随时可能被上游覆盖的 <code>:latest</code> 标签，而应锁定基础镜像的精确哈希摘要（<code>image@sha256:...</code>），确保在不同时间、不同机器上拉取到完全一致的底层镜像。</p>
+<h3 id="数据持久化与容器网络">数据持久化与容器网络</h3>
+<p>容器顶部的可写层会随容器删除而销毁，因此数据库数据或本地开发源码必须通过挂载持久化到容器之外：</p>
+<ul>
+<li><strong>命名卷（Named Volume）</strong>：如 <code>-v pgdata:/var/lib/postgresql/data</code>，由 Docker 统一托管存储路径，适合数据库和长期状态数据。</li>
+<li><strong>绑定挂载（Bind Mount）</strong>：如 <code>-v "$(pwd)":/workspace</code>，把宿主机指定目录直接映射进容器，适合本地边改代码边运行。</li>
+<li><strong>端口映射与自定义网桥</strong>：容器默认处在独立网络命名空间内，<code>-p 8080:80</code> 把宿主机 8080 端口转发到容器 80 端口；将多个协作容器接入同一个自定义桥接网络后，彼此可直接通过服务名互相访问。</li>
+</ul>
+<h3 id="多阶段构建与-gpu-容器的驱动边界">多阶段构建与 GPU 容器的驱动边界</h3>
+<p>工程实践与 AI 开发中还有两个高频关键概念：</p>
+<ul>
+<li><strong>多阶段构建（Multi-stage Build）</strong>：在同一份 <code>Dockerfile</code> 里，先用包含完整编译器（如 <code>gcc</code>、<code>cargo</code> 或 Node 构建链）的 <code>builder</code> 阶段编译出产物，再开启一个极简的最终运行阶段（如 <code>debian:bookworm-slim</code>），只把编译好的可执行文件复制进去。这能大幅缩小镜像体积，并减少运行镜像里多余工具带来的安全暴露面。</li>
+<li><strong>GPU 容器（NVIDIA Container Toolkit）</strong>：因为容器共享宿主机内核，<strong>内核态 GPU 驱动程序始终由宿主机提供</strong>，而<strong>用户态的 CUDA Toolkit、cuDNN 和深度学习框架装在容器镜像内部</strong>。只要宿主机驱动版本满足容器内 CUDA 运行时的最低兼容要求，就能直接调用 GPU——切忌在 <code>Dockerfile</code> 里安装宿主机显卡驱动。</li>
+</ul>
+<h2 id="速查参考">速查参考</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="left">工具</th><th align="left">核心原语</th><th align="left">底层心智模型</th><th align="left">高频踩坑点</th></tr></thead><tbody><tr><td align="left"><strong>Git</strong></td><td align="left">Blob / Tree / Commit</td><td align="left">内容寻址的完整快照有向无环图（DAG）</td><td align="left">误把提交当成脆弱的顺序补丁链</td></tr><tr><td align="left"><strong>Git</strong></td><td align="left">分支与 <code>HEAD</code></td><td align="left">指向单个 Commit 哈希的轻量可移动指针</td><td align="left">对已推送的共享分支执行 <code>rebase</code> 改写历史</td></tr><tr><td align="left"><strong>Git</strong></td><td align="left"><code>reflog</code> 与 <code>bisect</code></td><td align="left">本地 <code>HEAD</code> 轨迹日志；<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>log</mi><mo>⁡</mo><mi>N</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(\log N)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">)</span></span></span></span> 二分定位回归</td><td align="left">误操作 <code>reset</code> 后直接慌乱重克隆，忘了先查 <code>reflog</code></td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">Namespaces 与 <code>cgroups</code></td><td align="left">内核级视图隔离 + 资源配额限制</td><td align="left">把容器误当成自带独立内核的虚拟机</td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">镜像分层与缓存</td><td align="left">只读层堆叠 + 顶部薄写时复制层</td><td align="left">把 <code>COPY . .</code> 写在安装依赖之前导致缓存反复失效</td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">数据卷与镜像摘要</td><td align="left">容器外持久化存储；不可变 <code>sha256</code> 锁版本</td><td align="left">把重要数据留在临时容器层，或生产环境依赖 <code>:latest</code></td></tr><tr><td align="left"><strong>Docker (GPU)</strong></td><td align="left">宿主机驱动 + 容器 CUDA</td><td align="left">宿主机管内核态驱动，容器管用户态计算库</td><td align="left">试图在容器镜像内部重复安装显卡驱动</td></tr></tbody></table></div>
+<details class="references">
+<summary>参考文献</summary>
+<ol>
+<li><a href="https://git-scm.com/book/en/v2">Scott Chacon &#x26; Ben Straub, <em>Pro Git</em></a> — 第 2 版 · 三区模型、Git 四类内部对象、分支指针、merge 与 rebase、<code>reflog</code> 及 <code>bisect</code> · Git 2.x · §1–§3, §7, §10 · Primary</li>
+<li><a href="https://docs.docker.com/get-started/">Docker Official Documentation (<em>Get Started, Build, Storage, Networking</em>)</a> — 官方稳定版文档 · 镜像分层缓存、OverlayFS、Volume 与 Bind Mount、多阶段构建与镜像摘要 · Docker Engine / BuildKit · Build / Storage / Network 手册 · Primary</li>
+<li><a href="https://man7.org/linux/man-pages/man7/namespaces.7.html">Linux Programmer’s Manual (<code>namespaces(7)</code>, <code>cgroups(7)</code>)</a> — Linux 5.x / 6.x · 内核命名空间类型（<code>PID</code>/<code>NET</code>/<code>MNT</code>/<code>UTS</code>/<code>IPC</code>/<code>USER</code>）与 <code>cgroups</code> 资源控制 · Linux 系统 · <code>man 7 namespaces</code>, <code>man 7 cgroups</code> · Primary</li>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/">NVIDIA Container Toolkit Documentation</a> — 官方稳定版文档 · 宿主机内核驱动与容器内用户态 CUDA 库的职责边界 · 配备 NVIDIA GPU 的 Linux 宿主机 · Architecture &#x26; Overview · Primary</li>
+</ol>
+</details></div> </article> <aside class="toc toc-side" aria-label="目录"> <p class="toc-title">目录</p> <ol> <li><a href="#第一部分git-与内容寻址对象图">第一部分：Git 与内容寻址对象图</a></li><li><a href="#第二部分docker-与操作系统级容器隔离">第二部分：Docker 与操作系统级容器隔离</a></li><li><a href="#速查参考">速查参考</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="返回顶部" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>

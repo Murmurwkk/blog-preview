@@ -1,0 +1,941 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="72 条步行日志里的 848 个参考点全部判对了楼层，一段平层轨迹的估计高度却仍起伏约 20 米。让相对气压高度参与惯性滤波后，T25 选定楼梯段的估计轨迹重新呈现与压力趋势一致的升降。逐次核对历史状态又发现，T31 平层低谷有一部分来自后续观测对既有轨迹的修订。"><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="室内惯性导航的气压高度融合：楼层切换与楼梯高度估计"><meta property="og:description" content="72 条步行日志里的 848 个参考点全部判对了楼层，一段平层轨迹的估计高度却仍起伏约 20 米。让相对气压高度参与惯性滤波后，T25 选定楼梯段的估计轨迹重新呈现与压力趋势一致的升降。逐次核对历史状态又发现，T31 平层低谷有一部分来自后续观测对既有轨迹的修订。"><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/cn/blog/barometer-floor-transitions/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/cn/blog/barometer-floor-transitions/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/barometer-floor-transitions/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/barometer-floor-transitions/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>室内惯性导航的气压高度融合：楼层切换与楼梯高度估计</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk 首页"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="主导航"> <a href="/blog-preview/" aria-label="首页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>首页</span>  </a><a href="/blog-preview/cn/blog/" aria-label="博客" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>博客</span>  </a><a href="/blog-preview/about/" aria-label="关于">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>关于</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="知乎主页"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>知乎</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub 主页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="切换明暗主题"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> 预览站包含标为 <span lang="en" class="draft-label">draft</span> 的文章。 </aside> <main> <div class="article-layout has-toc"> <article class="article"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="research">研究文章</p> <nav class="language-switch" aria-label="阅读语言"> <a lang="en" hreflang="en" href="/blog-preview/blog/barometer-floor-transitions/">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/barometer-floor-transitions/" aria-current="page">简体中文</a> </nav> </div> <h1>室内惯性导航的气压高度融合：楼层切换与楼梯高度估计</h1> <p class="article-description">72 条步行日志里的 848 个参考点全部判对了楼层，一段平层轨迹的估计高度却仍起伏约 20 米。让相对气压高度参与惯性滤波后，T25 选定楼梯段的估计轨迹重新呈现与压力趋势一致的升降。逐次核对历史状态又发现，T31 平层低谷有一部分来自后续观测对既有轨迹的修订。</p> <div class="tag-row">  <a class="tag" href="/blog-preview/cn/tags/barometer/">#barometer</a><a class="tag" href="/blog-preview/cn/tags/floor%20estimation/">#floor estimation</a><a class="tag" href="/blog-preview/cn/tags/inertial%20navigation/">#inertial navigation</a><a class="tag" href="/blog-preview/cn/tags/factor%20graphs/">#factor graphs</a><a class="tag" href="/blog-preview/cn/tags/error%20attribution/">#error attribution</a> </div> <details class="toc toc-inline"> <summary>目录 <span>19 节</span></summary> <ol> <li><a href="#气压惯性楼层标签与位置参考的数据来源">气压、惯性、楼层标签与位置参考的数据来源</a></li><li><a href="#从压力变化估计楼层切换">从压力变化估计楼层切换</a></li><li><a href="#楼层分类准确率与连续高度误差">楼层分类准确率与连续高度误差</a></li><li><a href="#水平纠偏引入的三维轨迹倾斜">水平纠偏引入的三维轨迹倾斜</a></li><li><a href="#将压力作为连续相对高度观测">将压力作为连续相对高度观测</a></li><li><a href="#平层轨迹的坐标对准与惯性输入误差">平层轨迹的坐标对准与惯性输入误差</a></li><li><a href="#t25-楼梯上的竖直位移低估">T25 楼梯上的竖直位移低估</a></li><li><a href="#取消学习模型的竖直位移更新后重建历史状态">取消学习模型的竖直位移更新后重建历史状态</a></li><li><a href="#历史状态修正后的垂直一致性与水平误差">历史状态修正后的垂直一致性与水平误差</a></li><li><a href="#在惯性滤波中引入压力反馈">在惯性滤波中引入压力反馈</a></li><li><a href="#有限历史下保留压力观测相关性">有限历史下保留压力观测相关性</a></li><li><a href="#重新运行位移网络后的楼梯高度">重新运行位移网络后的楼梯高度</a></li><li><a href="#t31-平层完整轨迹中的高度下探">T31 平层完整轨迹中的高度下探</a></li><li><a href="#竖直观测通过交叉协方差引起的水平位移">竖直观测通过交叉协方差引起的水平位移</a></li><li><a href="#实时导航中的后验选择与楼层判定">实时导航中的后验选择与楼层判定</a></li><li><a href="#楼层切换连续高度与楼梯重锚的分工">楼层切换、连续高度与楼梯重锚的分工</a></li><li><a href="#气压与惯性融合的诊断方法">气压与惯性融合的诊断方法</a></li><li><a href="#楼梯与平层验证结果及连续运行的验证条件">楼梯与平层验证结果及连续运行的验证条件</a></li><li><a href="#历史步行日志对照实验与复算依据">历史步行日志、对照实验与复算依据</a></li> </ol> </details> </header> <div class="prose"><p>在 72 条室内步行日志中，848 个稀疏参考点的楼层全部判断正确，我一度以为垂直定位也已经足够可靠。后来打开两条始终标为 F3 的轨迹才发现，同一楼层内，一条轨迹的估计高度上下相差约 6.5 米，另一条竟相差约 20.2 米。楼层标签看起来完全正确，却掩盖了连续高度估计中的偏差。</p>
+<p>楼层是离散标签，连续高度则要随着惯性状态逐步积分。手机气压计能感受到上楼时的压力下降，但只在换层时改一个整数，既管不住平层的高度漂移，也解释不了人是怎样走上楼的。我们在开发中先后见过水平纠偏把整条路转成斜坡、运动模型把真实楼梯压平，甚至同一个历史节点的估计跳了几米。每次回查，第一件事都是认清发生变化的是哪条曲线、它以什么为参考。</p>
+<p>这些问题在四条步行日志里表现得很不一样。T25 有真实的上下楼，可以用来看估计是否保住了楼梯的升降；T31、T32 始终在平层，却都暴露过高度异常。T21 则留下了整套改动进入在线运行后的记录。下文图表中的秒数都从各自日志起算。</p>
+<h2 id="气压惯性楼层标签与位置参考的数据来源">气压、惯性、楼层标签与位置参考的数据来源</h2>
+<p>同一份步行日志里，“高度”有时指压力换算值，有时指滤波器估计的位置，而参考点甚至只记一个楼层号。先把下面五类数据对上，才能知道后面两条曲线相差几米时，究竟该去查传感器还是查算法。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>名称</th><th>实际含义</th><th>可以回答什么</th><th>不能直接回答什么</th></tr></thead><tbody><tr><td>原始 PRES</td><td>手机记录的压力样本</td><td>压力是否变化、什么时候变化</td><td>人在哪一层、实际海拔是多少</td></tr><tr><td>压力相对高度</td><td>相对某个压力参考换算的高度变化</td><td>在模型假设下，压力支持怎样的升降</td><td>独立、无偏的连续高度真值</td></tr><tr><td>Floor 楼层</td><td>状态机或离散图提交的楼层编号</td><td>当前确认属于哪个楼层</td><td>这一层内每个位置的连续 U 坐标是否正确</td></tr><tr><td>Motion／native 高度</td><td>惯性与其他观测共同计算的竖直状态</td><td>当前模型对连续运动的解释</td><td>它必然等于压力曲线或真实高度</td></tr><tr><td>POSI 参考点</td><td>官方日志里的稀疏位置与楼层记录</td><td>对齐时刻的水平误差和楼层正确性</td><td>两点之间的密集路线、连续手机高度</td></tr></tbody></table></div>
+<p>本文用 EN 表示东、北两个水平方向，U 表示竖直向上。T21、T25、T31、T32 是四条 Trial 的简称。除非另有说明，T25 指 session01／SA52，T31 指 session02／SA52。文中的 T31 四个快照都取自同一条日志，各对应一次历史求解。长链中用于构造、确认候选的 A/B/C 则是另一组分段。</p>
+<p>几个指标也要提前约定。高度“跨度”是同一评价范围内的最大值减最小值；高度“净变化”是末点减首点，两者不是同一个数。压力残差 RMS 描述算法与压力观测的相容程度，不是独立高度误差。水平误差只有在相同物理时刻、相同参考点集合上才可直接比较。算法之间的矩阵差接近机器精度，证明的是相同近似下的实现一致性，不证明轨迹接近真人行走。</p>
+<p>因为我们没有密集、独立的高度真值，平层案例首先只能靠物理常识发现问题。走路、抬手和放下手机通常解释不了数米乃至数十米的起伏，约 1.5 米的经验范围就是据此提出的。它只用来提醒我们回查资料，从未作为裁剪输出、拒收轨迹、挑选解或反推噪声权重的条件。到了真正的楼梯上，这条平层经验也不再适用。</p>
+<h2 id="从压力变化估计楼层切换">从压力变化估计楼层切换</h2>
+<h3 id="参考压力与相对高度的换算">参考压力与相对高度的换算</h3>
+<p>在这段行程内把气温近似为常数，就可以用当前压力与参考压力之比来估计相对高度。</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>=</mo><mo>−</mo><mi>s</mi><mi>log</mi><mo>⁡</mo><mfrac><msub><mi>P</mi><mi>i</mi></msub><msub><mi>P</mi><mn>0</mn></msub></mfrac><mo separator="true">,</mo><mspace width="2em"></mspace><mi>s</mi><mo>=</mo><mfrac><mrow><msub><mi>R</mi><mrow><mi mathvariant="normal">a</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">r</mi></mrow></msub><mi>T</mi></mrow><mi>g</mi></mfrac><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">h_i=-s\log\frac{P_i}{P_0},\qquad s=\frac{R_{\mathrm{air}}T}{g}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1963em;vertical-align:-0.836em;"></span><span class="mord">−</span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.836em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.2408em;vertical-align:-0.8804em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathrm mtight">air</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8804em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">.</span></span></span></span></span>
+<p><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">P_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 是当前压力，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">P_0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 是参考压力，温度假设 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi></mrow><annotation encoding="application/x-tex">T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span></span></span></span> 决定了以米为单位的尺度 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span>。在这个定温模型中，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">P_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 下降，算出的相对高度就会增加。Android 的 <code>SensorManager.getAltitude</code> 同样需要参考压力，不过用的是标准大气的幂律近似。因此两者都可以从相邻读数估计相对高差，具体数值则要按各自的公式解释。<a href="https://developer.android.com/reference/android/hardware/SensorManager#getAltitude(float,%20float)">Android 高度接口</a>、<a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/hardware/SensorManager.java#1564">Android 源码中的换算式</a></p>
+<p>后来沿用的开发模型取 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>293.15</mn><mtext> </mtext><mi mathvariant="normal">K</mi></mrow><annotation encoding="application/x-tex">T=293.15\,\mathrm{K}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">293.15</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathrm">K</span></span></span></span>，对应 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>≈</mo><mn>8581.016</mn><mtext> </mtext><mi mathvariant="normal">m</mi></mrow><annotation encoding="application/x-tex">s\approx8581.016\,\mathrm{m}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4831em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">8581.016</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathrm">m</span></span></span></span>。在约 1000 hPa 附近，1 hPa 的小变化约对应 8.58 米；这只是该温度与局部压力下的近似灵敏度，不能写成所有建筑共用的固定层高换算表。</p>
+<p>公式用的是压力之比。只要两项采用同一单位，Pa 换成 hPa 会在分子和分母中同时抵消，因此碰到高度方向错误，单换单位解决不了。取比值能消掉共同的乘性尺度，却消不掉加性偏置。再考虑气象压力随时间变化、室内外压差和传感器慢漂，可以把换算后的观测写得更贴近实际一些。</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>z</mi><mi>h</mi></msub><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mo>=</mo><mi>h</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mo>+</mo><mi>b</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mo>+</mo><mi>ϵ</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">z_h(t)=h(t)+b(t)+\epsilon(t).</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.044em;">z</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.044em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">h</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">b</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">ϵ</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mord">.</span></span></span></span></span>
+<p>这里的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">b(t)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">b</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span></span></span></span> 包含尚未解释的基准变化。人不动而 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi><mo stretchy="false">(</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">b(t)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">b</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span></span></span></span> 改变，压力高度照样会变化。人正在上楼而环境压力反向变化，真实升降也可能被部分抵消。因此，压力趋势是证据，不是已经带答案的楼层标签。</p>
+<h3 id="以完整的垂直运动事件判断切层">以完整的垂直运动事件判断切层</h3>
+<p>早期仓库里同时存在气压高度、滑动平均、梯度、无线楼层投票等尝试。随后混合图曾让离散楼层与连续高度交替求解，但在真实运行中出现过 F3、F4、F5 来回变化和收敛困难。继续增加迭代次数或放宽数值容忍度，能让某些运行走得更远，却没有回答“这一份压力变化为什么应该算一次换层”。</p>
+<p>于是我们把“换一次层”落实为可以沿时间跟踪的事件。系统先在平层维护参考压力，发现持续趋势后才建立候选，接着积累压力和活动证据，在地图允许的相邻楼层间提出转换。一旦确认，就把这次事件标记为完成，免得平台上的一点波动又被算作同一次迁移。</p>
+<p>这种设计没有要求人必须完全停下才换层。它区分的是“已经有足够证据改变楼层编号”和“身体已经走到楼梯出口”。前者可以在爬楼过程中成立，后者还需要平台、入口—出口关系和地图连接信息。</p>
+<p>同一份压力数据由此分成两路。一条路径判断这段升降是否足以改变楼层号，另一条路径直接约束人在两个时刻之间的高度差。下图保留了两条路径各自的输出。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart TD</span></span>
+<span class="line"><span style="color:#E6EDF3">    P[压力样本与因果趋势] --> E[垂直活动事件]</span></span>
+<span class="line"><span style="color:#E6EDF3">    I[IMU活动与STEP辅助信息] --> E</span></span>
+<span class="line"><span style="color:#E6EDF3">    E --> C[合法相邻楼层候选]</span></span>
+<span class="line"><span style="color:#E6EDF3">    C --> D[离散路径选择并提交楼层]</span></span>
+<span class="line"><span style="color:#E6EDF3">    D --> R[完成事件并管理参考基准]</span></span>
+<span class="line"><span style="color:#E6EDF3">    D --> X[继续判断真实平台或出口]</span></span>
+<span class="line"><span style="color:#E6EDF3">    X --> M[地图连接器与水平区域修正]</span></span>
+<span class="line"><span style="color:#E6EDF3">    P --> H[连续高度观测模型]</span></span>
+<span class="line"><span style="color:#E6EDF3">    H --> N[导航位置 速度 姿态共同后验]</span></span></code></pre>
+<p>活动识别可以解释压力变化时人在做什么，但它也会漏检。没检测到一步（STEP）未必是人停了，乘电梯本来就不需要连续迈步。同样，Floor 里的某些 <code>WALKING</code> 标签只表示系统没有识别出垂直活动。几个模块即便给出一致的判断，还要看它们是否都读了同一段 IMU，再决定这些判断能否互作独立证据。</p>
+<p><strong>做到这一步，系统已经能说明依据哪一段运动提交了换层。至于两次提交之间的连续高度有没有漂，还要直接检查轨迹。</strong></p>
+<h2 id="楼层分类准确率与连续高度误差">楼层分类准确率与连续高度误差</h2>
+<p>我先回到了最初让我放心的那两个批次，把“楼层全部正确”对应的参考点逐项数了一遍。</p>
+<p>两个旧批次都覆盖 72 条日志，各自的 848 个参考点全部匹配楼层。其中有 72 个启动点，扣除后还剩 776 个参考点。这个成绩回答的是“走到参考点时，系统报的是哪层”。相邻参考点之间没有连续标注，因此中途若误切后又切回，也可能照样通过，更不会有参考点替我们检验逐帧高度。</p>
+<p>更早的一份开发报告记录了 40 条日志，进程都能正常工作（40/40），全程楼层正确的却只有 29/40。按稀疏参考点统计，判对的是 489/516，约 94.77%。按切层事件回查，则有 3 次多余转换、34 次漏转换和 1 次反向转换。这些计数的分母不同，分别回答程序能否运行、参考点是否判对和整段是否发生错误转换。</p>
+<p>更直接的反例来自同层轨迹：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>历史案例</th><th>保存的楼层行为</th><th align="right">连续高度跨度</th><th>能得到的结论</th></tr></thead><tbody><tr><td>T31／session02／SA52</td><td>全程保持 F3</td><td align="right">6.541 m</td><td>楼层标签没有表达出连续高度漂移</td></tr><tr><td>T32／session01／SA52</td><td>全程保持 F3</td><td align="right">20.207 m</td><td>离散标签正常不能替代三维状态检查</td></tr></tbody></table></div>
+<p>两个跨度都按各自保存下来的轨迹范围计算。它们能揭示楼层标签没有检出的高度问题，但两条路线的长度、输入和难度不相同，无法由跨度判断哪种算法更好。</p>
+<p><img alt="气压计实验图：旧楼层输出与连续高度跨度的区别" loading="lazy" decoding="async" fetchpriority="auto" width="1980" height="1188" src="/blog-preview/_astro/floor-score-height-blindspot.DolQBzpj_Z19uuWs.webp" ></p>
+<p><em>图 1　两个面板分别画出一段始终标为同层的轨迹。沿时间轴看，楼层号始终正确，连续高度估计却相差数米。两幅图的时间范围和纵轴刻度各自对应本段数据。</em></p>
+<p>回到配置文件，原因就清楚了。Floor-v3 已通过 <code>floor_transition_episode</code> 用压力识别垂直事件，但当时的实际运行关闭了连续 <code>barometer</code> 因子，也关闭了 <code>height_floor</code> 耦合。所以即使输入列表里有 PRES、楼层状态机也确实读过它，各轨迹节点的 U 仍然可以一路漂下去。</p>
+<p>此外，历史记录确实存在同层日志多出换层事件后的回滚与重新恢复。后来的审计也发现，有些重跑只覆盖部分日志或缺少可用位置输出。如果把部分回归、完整数据集和仅结构通过的结果都压缩成一句“以前从没错过”，后续归因从起点就会失真。</p>
+<p>因此验收时我会分别看三类结果。楼层标签要对照稀疏参考点和实际切层事件，连同误切与延迟一起数；连续高度要看平层的形状、上下楼的净高差及每次更新前后的状态；最后再把水平位置和速度放回去，判断整条导航轨迹是否合理。</p>
+<h3 id="半层高度触发的切层误判">半层高度触发的切层误判</h3>
+<p>随后保存的官方长日志调查中，活动路径为及时响应，会在约半层高度时提出转换。名义层高 3.5 米、进度比例 0.50、容差 0.02，对应约 1.68 米的提议尺度；某些误提交发生在约 1.68～1.97 米，而真实上楼的早期提议也会落在相近范围。</p>
+<p>人走到半层后继续向上，和走到半层又折返，在前半段可能给出几乎相同的压力变化。当时如果直接正式提交，又没有复核和撤回机制，后续即使都识别对了方向，也可能一直差一层。原接口只能拒绝尚未提交的候选，没法撤回已经生效的楼层，所以单纯收紧同一个高度阈值解决不了这个问题。</p>
+<p>但是全部等待完整层高又有代价：历史研究记录了密集折返、短平台停留的漏检，以及等待复核期间屏蔽新事件的问题。压力 level-shift 补漏能够帮助活动识别不足的情况，纯粹替代活动路径却会对短停留楼层不敏感。因此需要设计的是候选、提交、复核、撤回与下一事件的完整生命周期，而不是让同一个阈值同时负责灵敏度和最终正确性。</p>
+<p>这里采用的是保存的长日志调查记录，部分逐帧原件已不在当前本地，不能声称本次重新运行复现。另有一份名称带 <code>full72</code> 的历史批次实际上只完成 54 条，剩余 18 条失败：仅统计有回执的 657 个点全部正确，不能写成完整 72 条通过。这些边界都属于开发经验本身。</p>
+<h2 id="水平纠偏引入的三维轨迹倾斜">水平纠偏引入的三维轨迹倾斜</h2>
+<p>在 T31 的无线纠偏实验里，高度漂移还有另一种来源。我们已经用有限旋转修正了一阶大角度近似造成的水平轨迹伸长，俯视图看起来正常了，把同一段轨迹从侧面展开，却仍然是一道斜坡。</p>
+<p>其中一个快照的段内高度跨度约 9.76 米。进一步拟合发现，整条路线带有约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>21.24</mn><mo>∘</mo></msup></mrow><annotation encoding="application/x-tex">21.24^\circ</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6741em;"></span><span class="mord">21.2</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6741em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">∘</span></span></span></span></span></span></span></span></span></span></span> 的共同倾斜；只用这一刚体倾斜，就能预测约 9.84 米的高度跨度，形状 RMS 差仅约 0.083 米。它主要是一条被倾斜的斜坡，并不是高频气压抖动。</p>
+<p>这一现象和无线观测的维数并不矛盾。无线只直接观测 EN，但导航求解会同时调整位置、速度和姿态，Motion 残差主要约束相对运动关系。如果送进图里的约束未能持续固定正确的世界竖直方向，求解器就可以倾斜整条三维路线，借由水平投影的改变降低无线残差。</p>
+<p>虽然 TLIO 前端在惯性传播中使用重力，输出进入图优化时还要经过状态选择、线性化、协方差投影和历史压缩。每一步都可能改变下游实际保留的约束，所以要解释这道斜坡，仍须回到当前目标函数，检查世界竖直方向还受哪些量约束。</p>
+<p>另一个现象是整段高度基准的共同上移。该快照的初节点 U 变化约 15.41 米，与段内 9.76 米起伏属于两个机制。边界先验中位置、速度和姿态存在相关性；当姿态大幅改变时，位置的条件均值也会改变。原记录中，高度共移与这个条件响应相符到约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5.4</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>12</mn></mrow></msup></mrow><annotation encoding="application/x-tex">5.4\times10^{-12}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5.4</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">12</span></span></span></span></span></span></span></span></span></span></span></span> 米。</p>
+<p>如果直接删去这些交叉项，边界先验表达的信息也会随之改变。比较可靠的做法是恢复足够的历史，检查这个大角度有限旋转是否已经超出原线性化先验的适用范围，再用真实的竖直测量约束高度。只知道线性化点附近的高斯近似，还不足以推出离开该点后的非线性分布。</p>
+<p>这次回查也纠正了我的一个直觉。<strong>即使陀螺仪测到的角速度很平稳，估计高度仍然可能一路漂移。</strong> 陀螺仪提供角速度，而高度还要经过姿态估计、重力扣除、加速度偏置处理，再由速度积分得到。例如，恒定 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.01</mn><mtext> </mtext><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">/</mi><msup><mi mathvariant="normal">s</mi><mn>2</mn></msup></mrow></mrow><annotation encoding="application/x-tex">0.01\,\mathrm{m/s^2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord">0.01</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathrm">m/</span><span class="mord"><span class="mord mathrm">s</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathrm mtight">2</span></span></span></span></span></span></span></span></span></span></span></span> 的残余加速度若持续一分钟，单按积分关系就可造成约 18 米的位置误差。这个计算只说明误差量级，项目并未据此测出某台手机的偏置。<a href="https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion">Android 对角速度与含重力加速度的定义</a></p>
+<h2 id="将压力作为连续相对高度观测">将压力作为连续相对高度观测</h2>
+<h3 id="用相对高度残差约束轨迹">用相对高度残差约束轨迹</h3>
+<p>要在同一张图里约束这条坡，我们保留原始压力，只用当时已经到达的样本聚合成窗，再将两个时刻的导航高度差与压力换算高差相减，得到下面的残差。</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false">(</mo><msub><mi>u</mi><mi>i</mi></msub><mo>−</mo><msub><mi>u</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>−</mo><mo stretchy="false">(</mo><msub><mi>h</mi><mi>i</mi></msub><mo>−</mo><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">r_i=(u_i-u_0)-(h_i-h_0).</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord">.</span></span></span></span></span>
+<p>残差里出现的是两个时刻的高差，未知的共同海拔基准会相互抵消。这样既能利用压力约束升降，又能保留启动信息给定的物理 U。求解完成后无需重新归零，也无需把同一层的整段轨迹压在一个固定平面上。</p>
+<p>这个区别很重要。如果直接告诉优化器“所有同层点都必须在同一平面”，确实可以得到漂亮的平线，却可能抹掉手持变化、坡道、台阶，甚至在离散楼层尚未提交时把正在爬楼的人压回去。压力因子应表达传感器支持的变化及不确定性，而不是把期望图形写进目标函数。</p>
+<h3 id="共用参考压力所产生的差分相关性">共用参考压力所产生的差分相关性</h3>
+<p>假设每个原始高度噪声 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\epsilon_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 独立，方差为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\sigma_i^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0728em;vertical-align:-0.2587em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-2.4413em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2587em;"><span></span></span></span></span></span></span></span></span></span>。差分噪声为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mi>i</mi></msub><mo>−</mo><msub><mi>ϵ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">\epsilon_i-\epsilon_0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>。两个不同差分都含有同一个 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">\epsilon_0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>，所以：</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="normal">Cov</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>ϵ</mi><mi>i</mi></msub><mo>−</mo><msub><mi>ϵ</mi><mn>0</mn></msub><mo separator="true">,</mo><msub><mi>ϵ</mi><mi>j</mi></msub><mo>−</mo><msub><mi>ϵ</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>=</mo><mrow><mo fence="true">{</mo><mtable rowspacing="0.36em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><msubsup><mi>σ</mi><mi>i</mi><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>σ</mi><mn>0</mn><mn>2</mn></msubsup><mo separator="true">,</mo></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mo>=</mo><mi>j</mi><mo separator="true">,</mo></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><msubsup><mi>σ</mi><mn>0</mn><mn>2</mn></msubsup><mo separator="true">,</mo></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>i</mi><mo mathvariant="normal">≠</mo><mi>j</mi><mi mathvariant="normal">.</mi></mrow></mstyle></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\operatorname{Cov}(\epsilon_i-\epsilon_0,\epsilon_j-\epsilon_0)
+=\begin{cases}
+\sigma_i^2+\sigma_0^2,&#x26;i=j,\\
+\sigma_0^2,&#x26;i\ne j.
+\end{cases}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop"><span class="mord mathrm" style="margin-right:0.0139em;">Cov</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3em;vertical-align:-1.25em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-2.4413em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2587em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-2.4519em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2481em;"><span></span></span></span></span></span></span><span class="mpunct">,</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-2.4519em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2481em;"><span></span></span></span></span></span></span><span class="mpunct">,</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span><span class="mpunct">,</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">i</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel"><span class="mrel"><span class="mord vbox"><span class="thinbox"><span class="rlap"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="inner"><span class="mord"><span class="mrel"></span></span></span><span class="fix"></span></span></span></span></span><span class="mspace nobreak"></span><span class="mrel">=</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span><span class="mord">.</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span>
+<p>即使原样本独立，差分协方差也有非对角项。如果原样本自身有时间相关性，记原协方差为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi></mrow><annotation encoding="application/x-tex">C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span>、差分算子为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi></mrow><annotation encoding="application/x-tex">D</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">D</span></span></span></span>，应使用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>C</mi><msup><mi>D</mi><mi mathvariant="sans-serif">T</mi></msup></mrow><annotation encoding="application/x-tex">DCD^\mathsf{T}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">T</span></span></span></span></span></span></span></span></span></span></span>。</p>
+<p>一旦丢掉这些非对角项，每来一个差分，滤波器就会把其中同一份参考压力误差再当作独立证据用一遍。观测虽然变多，估计却会比资料真正支持的更有把握。后面引入“压力记忆”，正是为了让共同参考带来的相关性一直保留到后续更新。</p>
+<p>最初我们从 T31 前段估计经验自协方差，并在求解前固定它。这样能明确复算每个差分应保留哪些相关项，但用来估计噪声的始终只是这段数据。模型能否迁移到其他设备、给出的误差范围能覆盖多少真实观测，还需要独立标定。</p>
+<h3 id="压力采样间隔对短时下探的影响">压力采样间隔对短时下探的影响</h3>
+<p>第一次把完整历史和每四秒一次的压力观测一起求解，四个快照的全历史高度跨度已经降到约 1.37～1.58 米。但在约 83 秒处，曲线还有一次短促下探。对齐时间后才看清，它恰好发生在两次压力观测之间，同期原始压力并不支持这次下探。</p>
+<p>因此下一次修改缩短真实观测的覆盖间隔，同时检查原始样本块不重复。对应的噪声自协方差也按同一规则重新构造：四秒协议用 33 个前段样本，一秒协议用 129 个；零滞后方差分别约为 0.041738 和 0.032577 平方米。<strong>这不是只改采样间隔、其余矩阵逐字节不变的单变量实验。</strong> 它没有根据目标高度调倍率，也没有强迫结果“刚好低于 1.5 米”。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>同一 T31 快照</th><th align="right">四秒压力，Gaussian 无线</th><th align="right">一秒压力，Gaussian 无线</th><th>改变的主要内容</th></tr></thead><tbody><tr><td>快照 A</td><td align="right">1.368 m</td><td align="right">1.359 m</td><td>时间覆盖及对应经验协方差</td></tr><tr><td>快照 B</td><td align="right">1.550 m</td><td align="right">1.410 m</td><td>时间覆盖及对应经验协方差</td></tr><tr><td>快照 C</td><td align="right">1.583 m</td><td align="right">1.450 m</td><td>时间覆盖及对应经验协方差</td></tr><tr><td>快照 D</td><td align="right">1.549 m</td><td align="right">1.411 m</td><td>时间覆盖及对应经验协方差</td></tr></tbody></table></div>
+<p>这些都是求解后的全历史 U 跨度，不能解释成四次独立的高度精度测量。更关键的反例是：同一模型的某个不良初值也能得到很小的高度范围，水平误差却约十七米。<strong>高度平稳不保证路线正确。</strong> 多初值解应按固定目标与收敛规则选择，不能按参考点误差或高度范围挑最漂亮的一条。</p>
+<h2 id="平层轨迹的坐标对准与惯性输入误差">平层轨迹的坐标对准与惯性输入误差</h2>
+<p>水平投影为什么会在大角度纠偏时被拉长，已有单独的几何推导。这里用有限旋转处理了这个问题，接着再看水平面的误差模型要怎样和压力观测配合。<a href="/blog-preview/cn/blog/local-correction-se2/">大转角纠偏与路线伸长</a></p>
+<p>有了竖直方向的一秒压力观测以后，我们又在同一条 T31 日志上只更换无线位置残差的误差模型。Student-t 调节的是偏大无线残差的权重，压力仍按原模型约束升降。因此下面各片段的水平误差变化，只能用来讨论无线观测的处理方式。</p>
+<p>保持一秒压力时，四个目标片段的水平结果如下：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>T31 片段</th><th align="right">Gaussian，尺度 Q</th><th align="right">Student-t，ν=4，尺度 Q</th></tr></thead><tbody><tr><td>A</td><td align="right">2.574 m</td><td align="right">0.672 m</td></tr><tr><td>B</td><td align="right">0.760 m</td><td align="right">0.765 m</td></tr><tr><td>C</td><td align="right">0.920 m</td><td align="right">1.181 m</td></tr><tr><td>D</td><td align="right">1.746 m</td><td align="right">1.607 m</td></tr></tbody></table></div>
+<p>A 明显改善，C 明确退步。这里 Student-t 的 Q 是尺度矩阵，ν=4 时真实协方差为 2Q，不能假装与 Gaussian Q 的二阶矩相同。进一步的匹配协方差对照显示，A 的 Gaussian 2Q 仍约 2.168 米，而 D 的 Gaussian 2Q 约 1.623 米，已经接近 Student-t 的 1.607 米：A、D 两组保存解的初值预算也不同。匹配协方差以后，仍不能把误差差值全归给厚尾分布。四个片段各自怎样改权、同初值预算的 B/C 对照测到了什么，可以对照专文。<a href="/blog-preview/cn/blog/student-t-motion-noise/">用 Student-t 给定位残差加权</a></p>
+<p>这些水平结果取自同一日志的离线片段。A、D 各只有四个目标片段内参考点，B、C 各只有一个，因此它们说明的是给定片段内的表现。尤其是 T31 一直走在平层，即使这些点全都贴合，也看不出模型会不会把真正的爬升压掉。接下来的 T25 恰好可以检验这一点。</p>
+<h3 id="地图坐标对准时保持世界竖直轴">地图坐标对准时保持世界竖直轴</h3>
+<p>沿着 T31 的来源继续查，我们还发现地图初始化本身就把世界竖直方向转歪了约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2.814</mn><mo>∘</mo></msup></mrow><annotation encoding="application/x-tex">2.814^\circ</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6741em;"></span><span class="mord">2.81</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6741em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">∘</span></span></span></span></span></span></span></span></span></span></span>。它和前面约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>21.24</mn><mo>∘</mo></msup></mrow><annotation encoding="application/x-tex">21.24^\circ</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6741em;"></span><span class="mord">21.2</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6741em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">∘</span></span></span></span></span></span></span></span></span></span></span> 的整段倾斜发生在不同环节。一个在坐标初始化时已经引入，另一个是纠偏求解缺少竖直信息后选出的斜坡，两者要分别修正。</p>
+<p>将该对齐明确限制为绕世界竖直轴的有限 yaw 旋转后，同一对照中无压力 U 跨度由约 5.611 米降到 3.256 米。它没有消除全部高度问题，但证明一部分异常来自坐标约定。合法的地图朝向调整应保持向上轴，不应该借机修改重力方向；同时，原 AHRS、IMU 和 TLIO 的同源信息不能因此再叠一份独立高精度姿态观测。</p>
+<h3 id="传感器到达时间与采样时间的错位">传感器到达时间与采样时间的错位</h3>
+<p>在继续改变噪声模型之前，对 T31 的输入时间线复查还发现了一个基础问题：应用收到 ACCE 的时间间隔约 0.572 秒，但相邻真实采样时间只差约 0.020 秒；GYRO 也有类似的采样、到达时钟差异。82 秒请求对应的批次为空，旧预处理却用上一个真实读数的保持值，填出了 81.500～81.995 秒之间 100 行看似有覆盖的 200 Hz 输入。随后到达的 81 条真实 IMU，反而落入已经被这些保持值占掉的消费区间。</p>
+<p>在这段被保持值占用的输入区间里，惯性传播使竖直速度下降了约 0.7727 m/s，学习模型的位移更新（learned 更新）只补回约 0.00325 m/s。既然大部分变化已经发生在传播输入失真的时候，此时去调气压低通或压力权重就对不上原因了。</p>
+<p>修正后的前端只用实际采到的样本构造输入块，并另外保留它们何时到达。如果样本迟到，线上就等它到达，离线重放也遵守相同的可用时间。受控来源对照中，前 27 包、249 次更新保持一致，后续等齐真实样本的最长等待为一秒。这给出了该片段的等待代价，也说明调整噪声模型之前应先查清输入到底有没有到齐。</p>
+<h2 id="t25-楼梯上的竖直位移低估">T25 楼梯上的竖直位移低估</h2>
+<p>T25 包含实际上下楼。我们先固定原来给定的两个出口区域，确认区域约束能在共同模型中提供水平纠偏，再迁移 T31 的压力模型。压力尺度、自协方差和乘数均不在 T25 重新选择，使用 99 个真实一秒压力窗口。</p>
+<p>单看求解结果，压力残差 RMS 从约 2.09 米降到 1.04 米，水平误差也略有下降，迭代还达到了原来的收敛标准。可是把整个楼梯段画出来，实际向上的那一程依旧几乎是平的。这才促使我们把楼层提交和连续高度分别回查。</p>
+<p>同一 T25 的旧、新 Floor 审计中，六次楼层提交时刻完全一致：73.0 秒 F2→F3、95.5 秒 F3→F2、115.0 秒 F2→F3、134.0 秒 F3→F2、153.5 秒 F2→F3、172.5 秒 F3→F2。连续高度模型的这一轮对照只覆盖其中的前段运动。至少在这个案例里，“真实上楼被压平”不能被解释为状态机突然换了一套切层结果。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>同一 T25 片段中的量</th><th align="right">数值</th></tr></thead><tbody><tr><td>Motion 原始高度净变化</td><td align="right">−1.999 m</td></tr><tr><td>压力换算高度净变化</td><td align="right">+2.309 m</td></tr><tr><td>联合求解后的高度净变化</td><td align="right">约 −0.199 m</td></tr><tr><td>联合末端与压力末端的差</td><td align="right">约 2.508 m</td></tr></tbody></table></div>
+<p>求解已经收敛，恰好说明运动模型与压力观测在当前目标下达成了这个折衷。要解释模型为什么宁愿把楼梯压平，得分别查看两者给出的高差和不确定性。单纯增加迭代次数不会改变它们在目标中的权重。</p>
+<h3 id="压力换算坐标方向与观测时间的检查">压力换算、坐标方向与观测时间的检查</h3>
+<p>原压力从 1024.105 降到 1023.82945 mbar，换算方向应当向上。检查确认公式符号正确、压力单位一致、没有每到一层就偷偷更换连续参考。地图方向初始化也只绕世界竖直轴旋转，源 U 与变换后 U 的差在约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>14</mn></mrow></msup></mrow><annotation encoding="application/x-tex">5\times10^{-14}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">14</span></span></span></span></span></span></span></span></span></span></span></span> 米量级，不能再把这次失败归咎于坐标对齐把水平混入高度。</p>
+<p>随后缩短到 106.5～129.5 秒这一段，公共首参考在端点差分中消掉，冲突仍然存在：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>局部升降证据</th><th align="right">高度增量</th><th align="right">模型中的标准差</th></tr></thead><tbody><tr><td>Motion</td><td align="right">+0.0206 m</td><td align="right">0.0841 m</td></tr><tr><td>固定压力模型</td><td align="right">+2.5122 m</td><td align="right">0.2487 m</td></tr></tbody></table></div>
+<p>这张表同时给出了偏差和置信程度。Motion 几乎没估出上升，而且给这份估计分配了很小的方差，求解器自然很难被压力观测拉动。保留完整相关性可以避免把观测算两遍，却无法替网络补上模型未覆盖的系统性偏差。</p>
+<h3 id="惯性传播与网络位移更新对高度的影响">惯性传播与网络位移更新对高度的影响</h3>
+<p>为了找出楼梯的升降在哪一步变小，我们读取每次实际更新前后的状态，把惯性传播与学习模型位移更新各自造成的高度变化分别累加。两项相加能还原同一次运行的净变化；若关掉网络，后续传播会从另一组状态出发，不能直接拿其中一项当作那条轨迹。</p>
+<p>在 106.5～129.5 秒，约 +0.0206 米来自传播 −0.0944 米与更新 +0.1150 米。这里没有证据支持“IMU 本来已经正确升高 2.5 米，最后被某次网络更新全部压掉”。而在 141.5～158.5 秒，传播约 +1.7294 米，更新约 −0.8168 米，网络更新确实压低了部分上升。不同路段不能强行套用同一个故事。</p>
+<p>网络每 0.05 秒预测一秒位移，输出窗口大量重叠，不能把所有预测相加。固定选择不重叠、支撑完整的窗口后，中段 22 窗 learned U 总量约 +0.201 米，末段 16 窗约 +0.079 米；同时检查其他相位，避免挑选最有利的切片。它支持“网络的竖直响应偏弱”这一判断，但还不足以把责任进一步唯一归到加速度偏置、重力投影或训练域中的某一项。</p>
+<p><img alt="气压计实验图：T25 楼梯各段中压力读数与两种状态估计的净高差" loading="lazy" decoding="async" fetchpriority="auto" width="1980" height="1007" src="/blog-preview/_astro/barometer-t25-climb-feedback.yOtXMIEe_Z1CkY5y.webp" ></p>
+<p><em>图 2　横轴为 T25 的五个楼梯时间段，纵轴为段内净高差（米）。橙柱和绿柱分别保留三维、仅水平的学习更新，都取共同截止时刻的历史状态。灰柱由气压换算，现场没有连续高度真值。</em></p>
+<h2 id="取消学习模型的竖直位移更新后重建历史状态">取消学习模型的竖直位移更新后重建历史状态</h2>
+<p>既然网络的竖直响应偏弱，下一项对照就保留三维 IMU 传播，但只让预测位移的东、北分量参与更新，把独立的竖直约束交回真实压力。下文把这种选择记为 EN-only，它限制的是学习模型能更新的测量分量，导航状态仍然保留连续 U。</p>
+<p>这个修改必须从来源重新生成。已经融合过 learned U 的后验，不能通过删掉协方差的某一行列就变回“未融合 U”。还要检查准入过程：如果仍用三维 NIS 判断是否接受观测，U 就还在间接影响测量选择。最初的对照冻结了原准入决定，因此它能隔离更新分量的作用，却不是完整重新设计过的二维测量系统。</p>
+<p>EN-only 后，一秒压力节点贴得更好了，两个压力节点中间的半秒状态却仍出现多米尖峰。139 秒附近，中点偏离约 −2.21 米，其中约 −2.39 米已经存在于来源历史，有限旋转只贡献约 0.00013 米。另一个相邻半秒里，保存位置下降约 10.22 米，learned 更新跳变量约 −10.23 米，传播仅约 +0.0067 米。</p>
+<p>如果把这些点直接连成物理轨迹，就等于画出人在半秒内突然下坠十米，而端点速度却没有支持这种运动。这时继续给压力加权、给速度低通，都会错过真正的问题。</p>
+<h3 id="实时发布轨迹与当前后验中的历史轨迹">实时发布轨迹与当前后验中的历史轨迹</h3>
+<p>问题出在两条看似相同的“历史轨迹”。旧实现存的是每个时刻已经发布的估计，后续观测到来时冻结历史均值，只维护它与当前状态的部分误差关联。用这份记录可以追踪当时发布的误差，但如果现在要重画已经走过的路，各历史点还需要按同一个观测截止时刻重新估计。</p>
+<p>举一个不使用真实实验数字的直觉例子：站着不动时，旧估计认为高度是 0 米；新观测到来后，当前估计修到 1 米。如果把旧 0 米与新 1 米直接连起来，图上就会出现一次上升。实际上它可能只是两次估计之间的修订，而不是人在移动。要画共同截止的物理历史，就必须允许新信息同时修订过去。</p>
+<p>我们当时犯的错恰在这里。保存端按“冻结发布误差”维护历史，构造 Motion 边时却把这些点当成已经吸收同一批观测的物理轨迹。两端用的是不同的估计对象，因此即使交叉协方差算得再精确，也不能把它们直接连成同一条路。</p>
+<h3 id="历史均值方差与交叉协方差的联合更新">历史均值、方差与交叉协方差的联合更新</h3>
+<p>设历史状态与当前状态的交叉协方差为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi></mrow><annotation encoding="application/x-tex">C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span>，当前观测 Jacobian 为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi></mrow><annotation encoding="application/x-tex">H</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span></span></span></span>，创新协方差为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi></mrow><annotation encoding="application/x-tex">S</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span></span></span></span>，创新为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ν</mi></mrow><annotation encoding="application/x-tex">\nu</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0637em;">ν</span></span></span></span>。在测量噪声独立于所列状态，或者相关压力驱动已纳入增广状态的表达下，历史应获得自己的增益：</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>K</mi><mrow><mi mathvariant="normal">h</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi></mrow></msub><mo>=</mo><mi>C</mi><msup><mi>H</mi><mi mathvariant="sans-serif">T</mi></msup><msup><mi>S</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">K_{\mathrm{hist}}=CH^\mathsf{T}S^{-1}.</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0715em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathrm mtight">hist</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8991em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8991em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">T</span></span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span><span class="mord">.</span></span></span></span></span>
+<p>随后不仅修订历史均值，还要更新历史方差与历史—当前交叉项。姿态通过有限旋转注入，并把相关协方差转到新的切空间。只改四元数、只改最后一个位置、或者只保留交叉块，都不足以得到一致的共同后验。</p>
+<p>实际要保留两份带时刻的记录。当时已经对外发布的输出照原样留存，算法内部另外维护“根据目前观测重新估计的历史”，给后续纠偏、预测和数值检查使用。这样才既能回看实时系统当时说了什么，又能用后来获得的信息还原过去的运动。</p>
+<p>共同截止来源仍采用原 EKF 线性化与历史条件更新，并没有重新线性化全部旧 IMU、网络和观测。有限姿态注入也不自动带来精确的全非线性平滑后验；这项修复首先让统计对象一致，再明确它保留的局部近似边界。</p>
+<h2 id="历史状态修正后的垂直一致性与水平误差">历史状态修正后的垂直一致性与水平误差</h2>
+<p>T25 的 EN-only 共同截止来源，把后续观测修订正确传到历史后，未绑定半秒节点的中点偏离 RMS 从约 0.940 米降到 0.028 米；位置增量与速度梯形积分的最大差从约 10.23 米降到约 0.15 米。这是来源含义修复带来的状态一致性改善，没有使用高度裁剪。</p>
+<p>半秒尖峰明显减小以后，把压力拿掉，整段高度依然会慢慢下漂约 46.05 米。这就把两个问题分开了。此前的多米锯齿主要是把估计修订画成了运动，而缓慢的漂移仍与竖直可观信息不足或运动模型失配有关，修正历史记录只能解决前一项。</p>
+<p>加入相同压力和两个给定出口区域后，又得到一组必须同时看的结果：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>指标</th><th align="right">冻结发布历史的旧消费方式</th><th align="right">共同截止历史</th></tr></thead><tbody><tr><td>半秒中点偏离 RMS</td><td align="right">约 0.936 m</td><td align="right">约 0.028 m</td></tr><tr><td>压力差分残差 RMS</td><td align="right">约 0.213 m</td><td align="right">约 0.733 m</td></tr><tr><td>四个同点水平平均误差</td><td align="right">约 1.534 m</td><td align="right">约 1.888 m</td></tr></tbody></table></div>
+<p>把表中的两类结果放在一起，代价才看得出来。旧方案把一秒压力节点贴得很紧，但节点之间仍有多米尖峰。新方案恢复了沿途连续性，同时也带来了更大的水平误差和压力残差。只用压力点上的误差给方案排序，就会把那条尖峰轨迹评得过高。</p>
+<p>接着用完整端点 Gaussian 做独立条件计算，与现有有限 Motion 求解相比较。XYZ 与 EN-only 两种来源的高度最大差分别约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>6.0</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup></mrow><annotation encoding="application/x-tex">6.0\times10^{-5}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">6.0</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">5</span></span></span></span></span></span></span></span></span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>9.6</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup></mrow><annotation encoding="application/x-tex">9.6\times10^{-4}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">9.6</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">4</span></span></span></span></span></span></span></span></span></span></span></span> 米，压力 RMS 仍约 0.829 和 0.732 米。在这两种端点高斯对照中，求解器之间的高度差比压力残差小得多。这项检查覆盖的是指定端点模型。整套非线性求解是否正确，剩余失配究竟来自哪里，还要分别验证。</p>
+<p>还有一个容易浪费时间的数值陷阱。EN-only 来源在竖直方向不确定性很大，矩阵尺度差很强。直接逆作用后的原坐标梯度看起来不小，改用 Cholesky、噪声白化与薄 SVD 的独立参考后，白化梯度相对范数约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4.9</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>12</mn></mrow></msup></mrow><annotation encoding="application/x-tex">4.9\times10^{-12}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">4.9</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">12</span></span></span></span></span></span></span></span></span></span></span></span>，状态解差约 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.8</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup></mrow><annotation encoding="application/x-tex">2.8\times10^{-9}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2.8</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">9</span></span></span></span></span></span></span></span></span></span></span></span>。因此，判定求解器没收敛之前，要先确认检查本身在病态尺度下可靠；不能一看到大梯度就提高容忍度，也不能随意加对角抖动让分解通过。</p>
+<h2 id="在惯性滤波中引入压力反馈">在惯性滤波中引入压力反馈</h2>
+<p>此前我们是在生成 Motion 轨迹之后才离线加入压力，所以它能修正已经保存的片段，却赶不上后面的惯性传播。要让修订后的高度、速度和姿态真正影响下一步，就得把压力作为原生滤波器（native）联合后验中的一次测量，按下面的时间顺序消费。</p>
+<ol>
+<li>原压力按准确物理时间形成窗口；</li>
+<li>在对应历史节点上建立相对高度测量；</li>
+<li>同时更新相关导航状态和压力记忆；</li>
+<li>后续传播、网络输入和候选预测使用这份修订后的状态；</li>
+<li>已消费的压力不再以“图内新因子”加入第二次。</li>
+</ol>
+<p>最后一条尤其容易遗漏。把压力迁入前端后，如果又拿已经被压力修正的来源，加回同一批压力残差，就会把同一观测算两遍。它可能使曲线更贴合压力、协方差更小，但这些表面改善没有增加任何独立信息。</p>
+<h3 id="固定网络输出时三种压力融合方式的比较">固定网络输出时三种压力融合方式的比较</h3>
+<p>先固定网络输出和原接受决定，用同一压力模型比较无压力、末端条件化压力、原生顺序压力反馈。这样做是为了隔离压力融合位置，不把重新推理网络带来的变化混在一起。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>T25 来源／处理</th><th align="right">末端相对 U</th><th align="right">压力差分残差 RMS</th></tr></thead><tbody><tr><td>EN-only，无压力</td><td align="right">−46.053693 m</td><td align="right">不以此作为合格压力解</td></tr><tr><td>固定网络，末端条件化压力</td><td align="right">+2.455553 m</td><td align="right">0.73183 m</td></tr><tr><td>固定网络，原生顺序压力反馈</td><td align="right">+2.457209 m</td><td align="right">0.73326 m</td></tr></tbody></table></div>
+<p>两个加入压力的分支都恢复了与气压趋势相符的上行和下行，两条估计曲线也很接近。现场没有逐时刻的独立高度真值，压力失配仍按同一压力参考计算。把压力移到前端后，后续状态能够继承这次更新，这是接线本身带来的改变。至于剩下约 0.73 米的压力失配，两条曲线都还留着，说明它还得从模型和观测上另找解释。</p>
+<h2 id="有限历史下保留压力观测相关性">有限历史下保留压力观测相关性</h2>
+<p>要让这种反馈一直运行下去，还要解决内存随行程增长的问题。每多一个压力窗就把完整协方差再扩一行一列，留下来的会是一张不断变大的旧矩阵。其实后续更新只需要旧压力中仍与未来状态相关的那部分信息，这就给有限表示留出了空间。</p>
+<p>这批开发模型用有限移动平均过程表示压力噪声。每一窗的误差由当前及之前若干窗的噪声驱动共同决定。</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>ϵ</mi><mi>k</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mn>128</mn></munderover><msub><mi>a</mi><mi>j</mi></msub><msub><mi>w</mi><mrow><mi>k</mi><mo>−</mo><mi>j</mi></mrow></msub><mo separator="true">,</mo><mspace width="2em"></mspace><msub><mi>w</mi><mi>j</mi></msub><mo>∼</mo><mi>N</mi><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\epsilon_k=\sum_{j=0}^{128}a_jw_{k-j},\qquad w_j\sim N(0,1).</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3.2149em;vertical-align:-1.4138em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8011em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">128</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.4138em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0269em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span><span class="mbin mtight">−</span><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:2em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0269em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∼</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">)</span><span class="mord">.</span></span></span></span></span>
+<p>这里的 129 个系数由原模型固定压力前段的有偏经验自协方差构造。我们保留同一噪声假设，把它写成可以逐窗更新的有限状态形式，因此无需重新拟合 AR 参数或额外加入白噪声。</p>
+<p>对采用相同零延拓的原协方差，可以用一个共享参考变量和有限个仍会影响未来的噪声驱动，继续执行条件化。实现中常驻的是 <strong>共享参考量加 128 个驱动，共 129 维压力记忆</strong>；新驱动到来时先扩展，消费后再释放不再影响未来的方向，瞬时多一维。</p>
+<p>129 维只统计这份固定压力噪声模型所需的状态。估算整套导航的开销时，还要另算导航状态、活跃目标、候选分支、来源响应和求解临时空间。</p>
+<p>共同参考可以写成 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><msub><mi>U</mi><mn>0</mn></msub><mo>+</mo><msub><mi>ϵ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">q=U_0+\epsilon_0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>，后续的相对观测则是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>=</mo><msub><mi>U</mi><mi>i</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mi>i</mi></msub><mo>−</mo><mi>q</mi></mrow><annotation encoding="application/x-tex">d_i=U_i+\epsilon_i-q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span></span></span></span>。由此可见，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span></span></span></span> 除了参考压力的误差，还携带初始 U 的不确定性以及它和导航状态的关系。第一个压力窗用于建立这种关联，不能再当作独立高度观测使用。类似地，模型已经通过驱动状态引入了噪声，外面若再加一份独立 R，就会把同一测量噪声算两遍。</p>
+<p>除了要保存多少驱动，参考窗、时间支撑以及噪声尺度也决定了每次更新究竟融合了什么。下表列出这次开发对照采用的参数。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>参数／选择</th><th align="right">当前固定值</th><th>作用与局限</th></tr></thead><tbody><tr><td>温度假设</td><td align="right">293.15 K</td><td>用于压力换算，非每窗实测温度</td></tr><tr><td>对数压力尺度</td><td align="right">8581.016248 m</td><td>与上项同一物理近似</td></tr><tr><td>聚合方式</td><td align="right">一秒因果中位数</td><td>抑制局部离群；观测支撑是一段时间</td></tr><tr><td>观测步进</td><td align="right">一秒</td><td>与半秒图节点不是同一节拍</td></tr><tr><td>FIR 系数数量</td><td align="right">129</td><td>复现原固定经验协方差</td></tr><tr><td>常驻压力记忆</td><td align="right">129 维</td><td>q 与 128 个仍相关驱动</td></tr><tr><td>噪声整体乘数</td><td align="right">1.0</td><td>迁移对照没有为 T25 重调</td></tr><tr><td>跨 Trial 资格</td><td align="right">开发假设</td><td>未继承独立统计覆盖认证</td></tr></tbody></table></div>
+<p>原协方差在足够长的时滞之后按零延拓，有限实现也沿用了这个假设，所以它能复现原模型，却不能据此断定环境慢漂到点就会消失。另一个近似来自窗口本身。中位数覆盖的是前一秒，计算却把它绑定到窗末，约半窗的支持差异因此属于观测算子的近似，不能简单当作固定传感器延迟扣掉。</p>
+<p>真正重要的是在释放旧节点时，不能把压力记忆与导航状态的交叉协方差一起扔掉。否则新压力虽然看起来仍能入图，却已失去“它和过去哪些状态共同受参考误差影响”的关系。</p>
+<p>有限表示先要与原协方差重建相符，再检查逐窗更新和消元是否一致。T25 的 99 窗代数对照中，首窗建参考、其后 98 次提供信息；释放旧高度节点后，与密集批量条件计算的均值、协方差最大差分别约为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.31</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup></mrow><annotation encoding="application/x-tex">1.31\times10^{-9}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.31</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">9</span></span></span></span></span></span></span></span></span></span></span></span>、<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.01</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup></mrow><annotation encoding="application/x-tex">1.01\times10^{-9}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.01</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">9</span></span></span></span></span></span></span></span></span></span></span></span>。这认证的是该固定 Gaussian 模型的有界实现，后面还要检查它与真实短修及后续 Motion 更新共同工作。</p>
+<h2 id="重新运行位移网络后的楼梯高度">重新运行位移网络后的楼梯高度</h2>
+<p>前面的对照固定了网络输出，因而能隔离压力放在哪里更新。不过在实际运行中，压力会先改变导航状态，再经预处理改变网络看到的输入。为检查这层反馈，我们保留原来的观测接受决定，重新对实际窗口运行位移网络，再和两个冻结网络输出的分支作比较。</p>
+<p>三个分支沿用同一套按当时可用信息确定的坐标、同一份有限精度的官方起点，以及两个给定的出口区域。各分支都只使用一次同一批压力，因此可以把三条轨迹放到相同的四个参考点上评分。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方案</th><th align="right">水平平均误差</th><th align="right">P95</th><th align="right">最大误差</th><th align="right">全片段 U 跨度</th></tr></thead><tbody><tr><td>冻结网络，后融合压力</td><td align="right">1.888324 m</td><td align="right">2.904478 m</td><td align="right">2.954212 m</td><td align="right">3.542590 m</td></tr><tr><td>冻结网络，原生压力</td><td align="right">1.883914 m</td><td align="right">2.894369 m</td><td align="right">2.943373 m</td><td align="right">3.544895 m</td></tr><tr><td>实际网络反馈，原生压力</td><td align="right">1.882997 m</td><td align="right">2.893124 m</td><td align="right">2.942327 m</td><td align="right">3.544918 m</td></tr></tbody></table></div>
+<p>这个片段包含上下楼，因此约 3.54 米的跨度主要是在描述这段有升有降的运动，不能套用平层手持摆动的经验范围。三个分支的水平轨迹几乎重合，重新运行网络后，楼梯的升降也保留了下来。相形之下，几个参考点的毫米级差别不足以用来选整套系统的参数。</p>
+<p><img alt="气压计实验图：T25相同参考点下的水平路线与真实升降对照" loading="lazy" decoding="async" fetchpriority="auto" width="1620" height="1980" src="/blog-preview/_astro/t25-height-horizontal.N5zfYx1J_ZyJNtt.webp" ></p>
+<p><em>图 3　同一段楼梯的三条路线共用坐标、起点和出口位置。上图星号是稀疏水平参考（POSI），下图散点是气压换算高度，现场没有连续高度真值。</em></p>
+<p>四个点的平均水平误差很接近，但各点的变化方向并不相同。把它们逐项展开，就能看到重新运行网络后哪些位置更接近参考、哪些反而偏远。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">参考时刻</th><th align="right">后融合压力</th><th align="right">固定网络原生压力</th><th align="right">实际网络原生压力</th></tr></thead><tbody><tr><td align="right">81.681 s</td><td align="right">0.606992 m</td><td align="right">0.616023 m</td><td align="right">0.615293 m</td></tr><tr><td align="right">102.159 s</td><td align="right">1.369436 m</td><td align="right">1.359580 m</td><td align="right">1.360063 m</td></tr><tr><td align="right">121.794 s</td><td align="right">2.622654 m</td><td align="right">2.616678 m</td><td align="right">2.614306 m</td></tr><tr><td align="right">140.395 s</td><td align="right">2.954212 m</td><td align="right">2.943373 m</td><td align="right">2.942327 m</td></tr></tbody></table></div>
+<p>第一点仍有约八毫米退步。它本身不构成重要工程障碍，却说明记录不能只保留均值改善。更大的限制是：这是四个已经反复研究过的开发参考点，出口关联沿用给定结果，片段实际短 EN 因子数为零。它证明了“给定这些条件后，压力反馈可以保住升降与水平形状”，没有证明楼梯关联器、出口后的新鲜短修、owner 和长短链全都闭环。</p>
+<h2 id="t31-平层完整轨迹中的高度下探">T31 平层完整轨迹中的高度下探</h2>
+<p>T25 的楼梯高度恢复后，还得回到最初的平层问题。T31 的前 129 个压力窗里，某个来源的高度跨度约 1.067 米，只截这一小段会觉得效果相当好。于是我们从同一来源继续往后，检查关闭 learned U、改用原生压力反馈后的完整 A 前缀。</p>
+<p>对照保留了原来的六份无线观测、Student-t ν4／原 Q、有限起点和方向模型。在相同的九个参考点上，水平平均误差从约 2.557586 降到 2.531981 米，平均水平速度几乎不变。竖直方向却恰好相反，全前缀 U 跨度从 0.585540 米增到 2.116826 米，而且新来源在加入本次 Radio 之前，已经有了 2.117317 米跨度。</p>
+<p>这说明新无线拟合并没有制造这次主要起伏。也不能把它全部归到“压力提前融合”，因为相对旧 A 同时改变了 learned XYZ 到 EN-only 的测量选择。多项修改一起发生，单靠最终两条曲线无法隔离每项贡献。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>同一完整前缀中的对象</th><th align="right">相对首点高度跨度</th><th>说明</th></tr></thead><tbody><tr><td>原始压力换算</td><td align="right">1.629655 m</td><td>观测曲线，不是独立高度真值</td></tr><tr><td>同截止原 XYZ 来源</td><td align="right">1.447557 m</td><td>原运动模型的估计</td></tr><tr><td>旧 A：XYZ 来源＋图内压力＋Radio</td><td align="right">0.585540 m</td><td>原组合模型的结果</td></tr><tr><td>新 EN＋原生压力来源，尚无 Radio</td><td align="right">2.117317 m</td><td>新起伏已在来源中形成</td></tr></tbody></table></div>
+<h3 id="当次压力更新与后续历史修订的贡献">当次压力更新与后续历史修订的贡献</h3>
+<p>最终轨迹在 256.5 秒很低，单看这一条线，很容易以为当时的压力突然把人拉了下去。好在原件保留了同一节点的三个版本，我们可以先比较当次压力更新前后，再去看后来资料陆续到齐后，这个历史节点究竟又被修订了多少。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">节点标签</th><th align="right">当次压力前 U</th><th align="right">当次压力后 U</th><th align="right">完整截止的历史 U</th><th align="right">当次改量</th><th align="right">后续历史改量</th></tr></thead><tbody><tr><td align="right">219.5 s</td><td align="right">0.022741</td><td align="right">−0.081565</td><td align="right">0.503676</td><td align="right">−0.104306</td><td align="right">+0.585242</td></tr><tr><td align="right">240.5 s</td><td align="right">−0.627061</td><td align="right">−0.643747</td><td align="right">−0.029173</td><td align="right">−0.016687</td><td align="right">+0.614575</td></tr><tr><td align="right">253.5 s</td><td align="right">−0.838583</td><td align="right">−0.944581</td><td align="right">−1.478951</td><td align="right">−0.105998</td><td align="right">−0.534370</td></tr><tr><td align="right">256.5 s</td><td align="right">−0.794782</td><td align="right">−0.892189</td><td align="right">−1.610821</td><td align="right">−0.097407</td><td align="right">−0.718632</td></tr><tr><td align="right">266.5 s</td><td align="right">0.015164</td><td align="right">−0.126598</td><td align="right">−1.293331</td><td align="right">−0.141762</td><td align="right">−1.166733</td></tr></tbody></table></div>
+<p><em>表中高度与改量单位均为米；最终历史采用同一资料截止，未逐段重新对齐。节点标签与准确物理时刻通常相差 0.005 秒，不能在复算时忽略。</em></p>
+<p><img alt="气压计实验图：T31当次压力修正与后续历史修订的分离" loading="lazy" decoding="async" fetchpriority="auto" width="2160" height="936" src="/blog-preview/_astro/barometer-t31-history-revisions.B8sAFCoY_AE9xO.webp" ></p>
+<p><em>图 4　跟踪 T31 的三个历史节点，左图读出每次压力更新前后、以及引入后续数据之后的高度。右图比较新旧模型对完整片段给出的高度跨度（米）。</em></p>
+<p>256.5 秒节点当次压力只下调约 0.097 米，后来又下调约 0.719 米；266.5 秒节点后来的下移甚至约 1.167 米。这些后续变化包含后来的 EN 与压力共同条件化，不能记在某一份压力样本头上。</p>
+<p>219.5～256.5 秒，压力高度下降约 0.897 米，最终来源却下降约 2.114 米。原压力确有一个几十秒的谷形变化，但算法放大、重排了这个形状。现有记录不足以把每一笔后续 EN 和压力影响全部逆推出，因此正确结论是“共同模型仍有需要归因的放大”，而不是指定传感器瞬时跳变为唯一元凶。</p>
+<p>这里还有两项有用的检查。第一，在固定保存曲线上，完整支持窗口的 median 观测与端点近似最大差约 0.099 米、RMS 约 0.028 米。这比后来的米级历史修订小，但尚未独立重跑新的观测算子，不能据此排除小差异经反馈累积后的贡献。第二，新来源的原始压力残差 RMS 比旧 A 小，白化后的 RMS 却更大：原始残差小，并不总意味着在相关噪声模型下更一致。</p>
+<p>两种场景要放在一起读。同一模型在选定的 T25 楼梯段恢复了压力支持的升降形状，在 T31 平层的完整前缀中却放大了一部分高度起伏。<strong>因此这里保留了原始的平层下探，约 1.5 米仍只用于提醒我们回查，不能用来把曲线裁平。</strong></p>
+<h2 id="竖直观测通过交叉协方差引起的水平位移">竖直观测通过交叉协方差引起的水平位移</h2>
+<p>回查 T31 时还要考虑，压力直接观测的是 U，但一次更新的影响可以沿联合滤波器的交叉协方差传到 EN、速度、姿态和偏置。所以看到水平位置也跟着动，首先该核对这次改变量的大小和时刻，再判断它与实际轨迹、与模型所保留的相关性是否相容。</p>
+<p>因此，后续检查不再只看最终水平误差，还读取每次真实压力更新前后的改量。T31 与 T25 分别有 214 次、98 次可分析更新：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>指标</th><th align="right">T31</th><th align="right">T25</th></tr></thead><tbody><tr><td>单次压力更新最大水平位置改量</td><td align="right">2.85 cm</td><td align="right">5.66 cm</td></tr><tr><td>单次压力更新最大水平速度改量</td><td align="right">0.0113 m/s</td><td align="right">0.0127 m/s</td></tr><tr><td>原 learned 更新最大水平位置改量</td><td align="right">22.05 cm</td><td align="right">18.46 cm</td></tr><tr><td>最终半秒水平路段最大长度</td><td align="right">0.629 m</td><td align="right">0.795 m</td></tr><tr><td>累计旧历史水平修订最大量</td><td align="right">1.222 m</td><td align="right">2.002 m</td></tr></tbody></table></div>
+<p>最后一行不是一次跳变，它累计了许多后续资料。将其与单次改量混写，会再次把回溯修订误当作实时运动。两个有限片段没有重新出现此前每秒数米的异常速度，因而支持继续完成共同后验接线；但这不是全场景水平稳定性的证明。</p>
+<p>我们也不要求每一帧的位置差分都严格等于速度乘时间。滤波更新可以同时修正位置和速度，历史还会被后续资料修订。应该检查的是：惯性传播估计了多少位移，测量更新、坐标重定中心和回溯修订又各自改变了多少位置，是否在同一个资料截止下形成合理解释。</p>
+<h3 id="t21-释放历史状态后的压力信息传递">T21 释放历史状态后的压力信息传递</h3>
+<p>有限压力表示随后进入真实短修后的续接检查。整个对照使用 35 个历史压力窗与 4 个续接新窗，共 39 窗：首窗建立参考，38 次提供有信息的更新。新增压力与 900 次传播、90 次 learned 更新及 90 次克隆释放交错发生，没有先融合完全部未来压力再假装按时间推进。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>分支</th><th align="right">相同近似下最大数值差</th><th align="right">末端维数</th><th align="right">瞬时峰值</th><th align="right">压力记忆维数</th></tr></thead><tbody><tr><td>Gaussian 短修后续接</td><td align="right"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>7.30</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>13</mn></mrow></msup></mrow><annotation encoding="application/x-tex">7.30\times10^{-13}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">7.30</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">13</span></span></span></span></span></span></span></span></span></span></span></span></td><td align="right">363</td><td align="right">372</td><td align="right">129</td></tr><tr><td>Student-t 短修后续接</td><td align="right"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8.78</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>13</mn></mrow></msup></mrow><annotation encoding="application/x-tex">8.78\times10^{-13}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">8.78</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">13</span></span></span></span></span></span></span></span></span></span></span></span></td><td align="right">363</td><td align="right">372</td><td align="right">129</td></tr></tbody></table></div>
+<p>表里的数值差都以独立的密集历史计算为参考。两边采用相同观测和局部近似，结果仍然接近，说明这一段释放旧状态后，有界实现保住了参考计算需要的信息。要知道导航精度能到多少、长日志里内存怎样增长、数值是否稳定以及出错后能否恢复，还要分别在真实运行中测。</p>
+<h2 id="实时导航中的后验选择与楼层判定">实时导航中的后验选择与楼层判定</h2>
+<p>共同后验的数值对照通过以后，T21 的在线运行却在约 82 秒处停了下来。那半秒原始 TLIO 高度上移约 1.068 米，超出旧 Floor 辅助图对 Motion 竖直运动的允许范围，旧逻辑便拒绝了输入，一并终止了整个导航。</p>
+<p>问题是，native 此前已接管真正的共同导航，也已有压力约束后的后验。82 秒这批 native 输入虽然已经消费，旧门却在该窗输出准备与压力条件化之前阻断了流程；最近发布还停在 81.5 秒。旧辅助图看到的是仍在漂移的原始 Motion，它不再承担实际连续 U 的最终估计，却仍保留了否决整个系统的权力。</p>
+<p>修改没有把原阈值调大，也没有裁剪原始数据。只在“native 真正接管、压力已经工作、旧楼层高度耦合关闭”等前提成立时，把旧辅助边的垂直包络失格记录为诊断；原始身份、时序、协方差检查和旧运行模式的原门禁继续保留。</p>
+<p>旧门限测的是原始 TLIO 输入，导航要发布的却是已经过压力修正的当前后验。把两处状态分开检查，既能保留原始运动异常以便追查，也能判断这批输入经过真实观测修正后还能否用于导航。即使后验有界，前端本身的运动误差仍然存在。</p>
+<h3 id="启动时丢失参考压力窗所致的高度跳变">启动时丢失参考压力窗所致的高度跳变</h3>
+<p>运行链还暴露过另一类错误：72.0→72.5 秒的相邻发布高度跳变约 9.899299 米，恰好发生在压力更新次数从零变为一时。看图很像气压突然拉回了十米，但根因是启动材料没有正确继承。</p>
+<p>原压力参考在 52 秒，负责接收它的调度对象到 71 秒才建立；仅保留约十二秒历史的旧路径已经找不回首窗。一次空投递还把接收状态标成已开始，使初始化误用当前前沿。结果是系统先发布未正确接入原压力的状态，再由迟来的首次压力更新制造大跳变。</p>
+<p>修复时我们保留了有界的原始事件缓存，等调度对象建立，便把首窗连同准确目标、双时钟、原中位数和 raw 身份一并移交。中间如果没有能准确对应的历史状态，就只推进噪声驱动，等到有真实观测目标再更新。因此这一处修的是首个参考窗和第一次有效更新的先后顺序，压力公式与权重都没有变化。</p>
+<p>需要特别区分两个单位相近的数字：旧辅助图的 1.5 <strong>米／秒</strong> 垂直速度门，与同层约 1.5 <strong>米</strong> 的事后物理检查是两回事。后者从未被拿来替代上述算法修复。</p>
+<h3 id="t21-完整运行中的压力反馈对照">T21 完整运行中的压力反馈对照</h3>
+<p>修复后的另一轮 T21 控制组完整走到 290 秒，留下 439 个真实 PRODUCT 输出，不能与前述失败运行拼成同一条实验。<strong>这一轮实际配置使用 learned EN 测量，已关闭 learned U；表中的来源分支尚未接受 native 压力修订，不是默认 XYZ TLIO 基线。</strong> 下面是原报告选出的七个配对时刻：</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">日志时刻</th><th align="right">未融合压力的 EN 来源 U</th><th align="right">native U</th><th align="right">EN 来源竖直速度</th><th align="right">native 竖直速度</th></tr></thead><tbody><tr><td align="right">82 s</td><td align="right">15.581 m</td><td align="right">0.140 m</td><td align="right">0.963 m/s</td><td align="right">−0.101 m/s</td></tr><tr><td align="right">104 s</td><td align="right">70.924 m</td><td align="right">−1.117 m</td><td align="right">2.602 m/s</td><td align="right">−0.132 m/s</td></tr><tr><td align="right">144 s</td><td align="right">280.819 m</td><td align="right">−0.729 m</td><td align="right">6.195 m/s</td><td align="right">0.036 m/s</td></tr><tr><td align="right">144.5 s</td><td align="right">295.218 m</td><td align="right">−0.608 m</td><td align="right">6.582 m/s</td><td align="right">0.151 m/s</td></tr><tr><td align="right">200 s</td><td align="right">951.662 m</td><td align="right">−1.002 m</td><td align="right">13.099 m/s</td><td align="right">0.086 m/s</td></tr><tr><td align="right">250 s</td><td align="right">2020.193 m</td><td align="right">−0.740 m</td><td align="right">20.653 m/s</td><td align="right">0.149 m/s</td></tr><tr><td align="right">290 s</td><td align="right">3010.030 m</td><td align="right">0.577 m</td><td align="right">24.795 m/s</td><td align="right">−0.135 m/s</td></tr></tbody></table></div>
+<p><img alt="气压计实验图：T21未融合压力的EN来源与实际native后验的七个配对采样点" loading="lazy" decoding="async" fetchpriority="auto" width="1620" height="1548" src="/blog-preview/_astro/native-vs-tlio.C3SD6PZG_14PBVX.webp" ></p>
+<p><em>图 5　七个配对时刻分别取自只保留水平分量的运动来源和融合压力后的实际后验。上下图使用各自的纵轴和高度基准。七点间的连线仅供读数，两条曲线都缺少连续高度真值。</em></p>
+<p>放回全部 439 个输出，native U 始终落在 −1.283876～0.866120 米，跨度约 2.150 米，最大相邻高度变化约 0.397275 米。未融合压力、只保留 learned EN 的来源后来一路飘到了数百、数千米，融合压力后的轨迹却维持在这个有限范围，也没有重现旧版启动时约 9.899 米的断裂。这是压力真正进入运行中的联合后验后，对连续高度产生的可见影响。</p>
+<p>不过这个完整控制组只回答了部分问题。把同一轮的水平误差、运行耗时和实际启用的组件列出来，就能看清结论适用于哪一步。</p>
+<ul>
+<li>这是控制组，配对候选在启动时失败，不能据此声称完整联合组取得同样效果。</li>
+<li>439 点的高度跨度仍约 2.15 米，不能写成已经满足同层约 1.5 米物理期望。</li>
+<li>九个非起点水平参考均无错层，但水平平均误差约 5.117 米、P75 约 7.113 米，末点约 12.886 米；高度有界不等于水平已足够精确。</li>
+<li>这些控制组的短修、长修、Map、楼梯区域等修正计数为零，不能作为全部组件已经激活的证据。</li>
+<li>真实 PRODUCT 窗口耗时中位约 1316 ms，P95 约 1565 ms，均未满足 500 ms 目标；它也不是实时性验收通过。</li>
+</ul>
+<p>启动时有 18 个压力网格找不到准确对应的历史状态，因此系统跳过了这些观测。进入后续阶段，压力更新持续进行，记忆维数保持在 129。日志自然结束说明这次控制组走完了全程，启动期漏掉多少观测、轨迹误差多大和每窗能否及时完成，仍要分别从各自的记录读取。</p>
+<h2 id="楼层切换连续高度与楼梯重锚的分工">楼层切换、连续高度与楼梯重锚的分工</h2>
+<p>从楼层提交到压力反馈，再到楼梯出口的位置修正，三个模块都会用到“上楼”这一事实，但它们要更新的状态不同。</p>
+<p><strong>第一条是 Floor。</strong> 它解释是否发生合法楼层迁移，管理事件、方向、平台与层号。它需要对半层、折返、连续爬楼和错误活动标签负责。</p>
+<p><strong>第二条是连续压力后验。</strong> 它约束 U 的真实相对变化，保存共享参考与时间相关性，让压力修正继续影响后续位置、速度、姿态和偏置。它不因为 Floor 提交了一个整数，就把所有高度直接重设成该层平面。</p>
+<p><strong>第三条是楼梯出口位置修正。</strong> 它利用已经确认的入口—过渡—出口关系，给 EN 加一个区域约束。人在区域内不应被拉向中心；多个楼梯无法区分时保留候选，不能先按漂移位置挑最近楼梯，再用这个选择反过来证明位置正确。</p>
+<p>这三条链会共享部分输入，因此需要记录来源。压力参与识别某次到达，不代表随后还能把同一压力当成一份新的独立“出口确认概率”。无线若已用于楼梯消歧，也不能再作为独立短因子重复使用。</p>
+<p>连续压力参考与 Floor 事件参考也需要分开。一个用于差分观测和共同后验，一个用于迁移检测与事件重新武装；某个状态机为下一层重置工作基准，不应悄悄把已经进入连续模型的观测全部换成另一个参考。</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart TD</span></span>
+<span class="line"><span style="color:#E6EDF3">    R[原压力与准确时间] --> B[因果窗口与固定噪声模型]</span></span>
+<span class="line"><span style="color:#E6EDF3">    B --> P[共享参考及有限压力记忆]</span></span>
+<span class="line"><span style="color:#E6EDF3">    M[Motion与已有共同后验] --> J[候选共同更新]</span></span>
+<span class="line"><span style="color:#E6EDF3">    P --> J</span></span>
+<span class="line"><span style="color:#E6EDF3">    J --> V[位置 速度 姿态及关联状态]</span></span>
+<span class="line"><span style="color:#E6EDF3">    V --> H[保留必要关联并释放旧节点]</span></span>
+<span class="line"><span style="color:#E6EDF3">    H --> J</span></span>
+<span class="line"><span style="color:#E6EDF3">    R --> F[Floor垂直事件与层号提交]</span></span>
+<span class="line"><span style="color:#E6EDF3">    F --> E[真实出口与连接器确认]</span></span>
+<span class="line"><span style="color:#E6EDF3">    E --> A[出口EN区域约束]</span></span>
+<span class="line"><span style="color:#E6EDF3">    A --> J</span></span></code></pre>
+<p>图中旧节点离开十秒窗口时，还有一步容易漏掉。它和未来状态共有的压力信息必须先传给留下的变量，旧节点才可以释放。这样，有限记忆和共同边缘化既能延续先前更新的作用，也无需一直保存每一帧的完整矩阵。</p>
+<h2 id="气压与惯性融合的诊断方法">气压与惯性融合的诊断方法</h2>
+<h3 id="区分原始气压变化状态更新与历史修订">区分原始气压变化、状态更新与历史修订</h3>
+<p>看到曲线跳变，我会先对同一个时刻并排画出原始压力、当次更新后的当前位置和后来修订的历史节点，再检查坐标是否重新表达过。T31 的三层对照表把最终低谷拆成了当次更新和后来修订，而 T25 的半秒尖峰来自把不同观测截止时刻的发布值拼成一条物理轨迹。两种图形相似，修复位置却完全不同。</p>
+<h3 id="求解器收敛与实际楼梯高度的核对">求解器收敛与实际楼梯高度的核对</h3>
+<p>T25 在求解器已经收敛时，仍把压力支持的 +2.309 米升降折衷成约 −0.199 米。既然当前目标本身偏好这个解，继续迭代也恢复不了真实楼梯。反过来，尺度病态时，粗糙的梯度检查又可能误以为求解尚未收敛。我们因此先用稳定的独立参考核对数值解，再决定该改求解器还是改观测模型。</p>
+<h3 id="协方差计算的一致性与噪声模型的校准">协方差计算的一致性与噪声模型的校准</h3>
+<p>共同参考、运动来源和历史状态之间的交叉项决定了同一份信息有无被重复计算。即使这套计算与参考结果一致到机器精度，噪声模型也可能过于自信。例如这里的运动模型为局部升降给出的标准差只有 0.0841 米，而它与压力换算值相差约 2.49 米。这样的差异仍要回到传感器和模型假设中解释。</p>
+<h3 id="按误差来源排查高度异常">按误差来源排查高度异常</h3>
+<p>在处理高度异常之前，我会先检查形状是怎样产生的。若高度随整条路线倾斜，就查坐标对准；若楼梯升降被压平，就查学习模型的竖直响应；若半秒节点呈锯齿，就对齐历史估计的观测截止时刻。旧辅助图错误否决当前后验还要单查准入判断。只有异常确实来自压力的高频噪声时，才需要权衡低通对真实升降和响应时延的影响。</p>
+<h3 id="同层高度平滑与楼梯振幅的权衡">同层高度平滑与楼梯振幅的权衡</h3>
+<p>如果强制 U 落在楼层平面上，平层的起伏会消失，人在楼梯上的真实升降也会随之消失。正因较差的局部解同样可以十分平滑，挑选模型时需要把平层和上下楼放在一起看，再检查水平路线与速度是否相容。</p>
+<h3 id="已有对照暴露的水平误差与剩余高度偏差">已有对照暴露的水平误差与剩余高度偏差</h3>
+<p>共同截止修复改善了竖直连续性，水平误差却曾退步。把压力送回原生滤波器以后，约 0.73 米的失配也还在。再结合真实网络重推的毫米级差异，以及 T31 完整前缀里短前段没有暴露的下探，下一轮更值得追的是哪些水平和竖直误差仍未被模型解释。</p>
+<h3 id="压力因子迁移中的观测重复计入">压力因子迁移中的观测重复计入</h3>
+<p>把压力因子从离线图迁入 native 后，同一批压力已经被前端吸收，离线图就要撤掉原来的因子。AHRS、IMU、TLIO 共享信息时也一样。只有当更新代码真正根据来源判断这一份观测是否已经用过时，记录来源才有助于避免后验过度自信。</p>
+<h3 id="有限维状态进程内存与整窗延迟的测量">有限维状态、进程内存与整窗延迟的测量</h3>
+<p>129 维压力记忆衡量的是固定噪声模型所需的状态，363／372 维对照考察的是一次共同计算在释放旧历史后要保留多少量。两个数都没统计 Python 进程、后台候选、数据库、IPC 和整窗调度的成本。T21 控制组虽然能完整结束，运行时仍未达到 500 ms 的窗口预算。</p>
+<h2 id="楼梯与平层验证结果及连续运行的验证条件">楼梯与平层验证结果及连续运行的验证条件</h2>
+<p>从这些保存的对照看，气压计最初只给楼层状态机提供趋势，后来才作为一次真实测量进入联合导航后验，使高度修正能传到未来状态。在选定的 T25 楼梯段，估计轨迹重新呈现了与气压变化相符的升降，实际每一时刻的高度仍无独立真值。与此同时，只有把历史均值、方差与交叉关联一起更新，半秒节点上那些非物理锯齿才明显减少。两组独立数值对照还表明，在所测片段的固定模型内，有限压力记忆可以在释放旧节点后保住必要的关联。</p>
+<p>还要验证的场景也已经明确。T31 的完整前缀仍有平层起伏，完整控制组的高度跨度仍约 2.15 米。这些片段还不足以判断跨 Trial 的压力模型是否已经校准，也没有覆盖整条修正链在官方长日志上长期运行的联合表现。</p>
+<p>要区分这些可能的原因，每项验证都必须固定一组输入，再改变一个能够解释异常的条件。下表列出各项对照需要同时记录的结果。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>下一项问题</th><th>应保持相同的条件</th><th>应同时记录的结果</th></tr></thead><tbody><tr><td>同层低谷来自原压力还是共同更新放大</td><td>相同原压力、起点、目标与资料截止</td><td>当前及预选旧节点每次 EN／压力更新前后状态</td></tr><tr><td>learned 竖直模型何时可信</td><td>同 Trial 留出的固定模型规则</td><td>平层与楼梯同时评价，不只报其中一种</td></tr><tr><td>压力窗口近似是否影响快速过渡</td><td>同一批原始样本和因果可用时间</td><td>窗口观测算子与端点近似差、切层及出口延迟</td></tr><tr><td>相关噪声能否跨设备迁移</td><td>固定训练／评价分组与参数身份</td><td>残差相关性、覆盖与大错误，不把拟合内残差当验证</td></tr><tr><td>长期是否会失控</td><td>冻结后的实际运行配置</td><td>完整 Zenodo 长日志的精度、内存、落盘、耗时与失败</td></tr></tbody></table></div>
+<p>最后这一项不能省略。短片段能证明某个机制在指定条件下工作，无法覆盖长时间慢漂、参考基准变化、重复切层、来源释放和回滚。完成局部算法与整窗运行时后，仍必须在冻结配置上跑完整官方长日志。</p>
+<p>现在再看到一张高度曲线，我会先问它以什么物理坐标和压力参考为准，吸收了哪些时刻的观测，又有多大不确定性。知道这些，才能说清曲线上升的那一截究竟是人真的走上了楼，还是新的观测改写了我们对旧位置的估计。回到最初那 848 个正确的楼层标签，它们仍然有价值，只是连续高度终于也有了自己的检查办法。</p>
+<h2 id="历史步行日志对照实验与复算依据">历史步行日志、对照实验与复算依据</h2>
+<details>
+<summary>查看各阶段使用的历史实验、数据和证据索引</summary>
+<p>我根据已保存的实验原件重新核对数据并画图。下表编号对应随文的 <code>evidence-index.json</code>，其中列出了仓库相对路径、SHA-256、图表数据及各组结果适用的范围，可用于复核当次配置和产物。这次整理沿用了原有导航运行和参数。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>编号</th><th>原件主题</th><th>本文用途</th></tr></thead><tbody><tr><td>E01</td><td>旧 Floor 全批次审计、连续高度审计</td><td>72 日志成绩、同层高度反例、切层过程对照</td></tr><tr><td>E02</td><td>T31 有限几何、竖直证据与压力采样对照</td><td>路线倾斜、共享参考、四秒到一秒压力</td></tr><tr><td>E03</td><td>T31 Student-t 与匹配协方差对照</td><td>水平收益和退步，避免把无线鲁棒性归给压力</td></tr><tr><td>E04</td><td>T25 固定压力迁移与更新分解</td><td>真上楼压平、局部方差冲突、传播与更新账目</td></tr><tr><td>E05</td><td>发布历史／共同截止语义及压力残差审计</td><td>半秒锯齿、修复后的水平代价、独立数值参考</td></tr><tr><td>E06</td><td>T25 原生压力与真实网络反馈</td><td>升降恢复、相同参考点三臂比较</td></tr><tr><td>E07</td><td>T31 完整前缀高度归因</td><td>原压力、当次修正和后续历史修订的区别</td></tr><tr><td>E08</td><td>T21 真实短修后的压力与历史释放</td><td>129 维压力记忆及密集参考差</td></tr><tr><td>E09</td><td>T31／T25 水平更新归因</td><td>单次改量与累计历史改量的区别</td></tr><tr><td>E10</td><td>T21 完整 native 控制组分析</td><td>实际输出、EN 配置下来源分支的漂移、完整精度及运行时限制</td></tr></tbody></table></div>
+<p>T31 的四份快照与完整 A 前缀、T25 的三个分支、T21 的完整控制组，各自对应不同的输入与观测截止时刻。复算其中一张图时，先从表里找到相应的运行记录，才能重建正文中实际比较的那几条曲线。</p>
+</details>
+<style>
+.prose img[alt^="气压计实验图"] { display: block; max-width: 100%; height: auto; margin: 1.8rem auto 0.8rem; border-radius: 8px; background: #fff; }
+.prose:has(img[alt^="气压计实验图"]) table th,
+.prose:has(img[alt^="气压计实验图"]) table td { min-width: 7em; overflow-wrap: normal; word-break: normal; }
+@media (min-width: 760px) {
+  .prose:has(img[alt^="气压计实验图"]) .mermaid > svg { max-width: 100% !important; }
+}
+</style>
+<details class="references">
+<summary>参考文献</summary>
+<ol>
+<li><a href="https://developer.android.com/reference/android/hardware/SensorManager#getAltitude(float,%20float)">Android SDK，SensorManager.getAltitude(p0, p)</a></li>
+<li><a href="https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/hardware/SensorManager.java#1564">Android 源码中的换算式</a></li>
+<li><a href="https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion">Android 对角速度与含重力加速度的定义</a></li>
+</ol>
+</details></div> </article> <aside class="toc toc-side" aria-label="目录"> <p class="toc-title">目录</p> <ol> <li><a href="#气压惯性楼层标签与位置参考的数据来源">气压、惯性、楼层标签与位置参考的数据来源</a></li><li><a href="#从压力变化估计楼层切换">从压力变化估计楼层切换</a></li><li><a href="#楼层分类准确率与连续高度误差">楼层分类准确率与连续高度误差</a></li><li><a href="#水平纠偏引入的三维轨迹倾斜">水平纠偏引入的三维轨迹倾斜</a></li><li><a href="#将压力作为连续相对高度观测">将压力作为连续相对高度观测</a></li><li><a href="#平层轨迹的坐标对准与惯性输入误差">平层轨迹的坐标对准与惯性输入误差</a></li><li><a href="#t25-楼梯上的竖直位移低估">T25 楼梯上的竖直位移低估</a></li><li><a href="#取消学习模型的竖直位移更新后重建历史状态">取消学习模型的竖直位移更新后重建历史状态</a></li><li><a href="#历史状态修正后的垂直一致性与水平误差">历史状态修正后的垂直一致性与水平误差</a></li><li><a href="#在惯性滤波中引入压力反馈">在惯性滤波中引入压力反馈</a></li><li><a href="#有限历史下保留压力观测相关性">有限历史下保留压力观测相关性</a></li><li><a href="#重新运行位移网络后的楼梯高度">重新运行位移网络后的楼梯高度</a></li><li><a href="#t31-平层完整轨迹中的高度下探">T31 平层完整轨迹中的高度下探</a></li><li><a href="#竖直观测通过交叉协方差引起的水平位移">竖直观测通过交叉协方差引起的水平位移</a></li><li><a href="#实时导航中的后验选择与楼层判定">实时导航中的后验选择与楼层判定</a></li><li><a href="#楼层切换连续高度与楼梯重锚的分工">楼层切换、连续高度与楼梯重锚的分工</a></li><li><a href="#气压与惯性融合的诊断方法">气压与惯性融合的诊断方法</a></li><li><a href="#楼梯与平层验证结果及连续运行的验证条件">楼梯与平层验证结果及连续运行的验证条件</a></li><li><a href="#历史步行日志对照实验与复算依据">历史步行日志、对照实验与复算依据</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="返回顶部" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>

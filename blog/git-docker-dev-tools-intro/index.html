@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="An introductory guide explaining Git's snapshot object model, branching, merging, and recovery tools alongside Docker's Linux namespaces, layered images, volumes, and GPU container boundaries."><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="Git and Docker Fundamentals: Content-Addressed History and Container Isolation"><meta property="og:description" content="An introductory guide explaining Git's snapshot object model, branching, merging, and recovery tools alongside Docker's Linux namespaces, layered images, volumes, and GPU container boundaries."><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/blog/git-docker-dev-tools-intro/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/blog/git-docker-dev-tools-intro/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/git-docker-dev-tools-intro/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/git-docker-dev-tools-intro/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>Git and Docker Fundamentals: Content-Addressed History and Container Isolation</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk home"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="Main"> <a href="/blog-preview/" aria-label="Overview"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>Overview</span>  </a><a href="/blog-preview/blog/" aria-label="Blog" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>Blog</span>  </a><a href="/blog-preview/about/" aria-label="About">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>About</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="Zhihu profile"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>Zhihu</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub profile"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="Switch between light and dark theme"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> This preview includes <span lang="en" class="draft-label">draft</span> articles. </aside> <main> <div class="article-layout has-toc"> <article class="article" data-draft-preview="true"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="study-note">Study note</p> <nav class="language-switch" aria-label="Language"> <a lang="en" hreflang="en" href="/blog-preview/blog/git-docker-dev-tools-intro/" aria-current="page">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/git-docker-dev-tools-intro/">简体中文</a> </nav> </div> <h1>Git and Docker Fundamentals: Content-Addressed History and Container Isolation</h1> <p class="article-description">An introductory guide explaining Git&#39;s snapshot object model, branching, merging, and recovery tools alongside Docker&#39;s Linux namespaces, layered images, volumes, and GPU container boundaries.</p> <div class="tag-row"> <span lang="en" class="draft-label draft-badge">draft</span> <a class="tag" href="/blog-preview/tags/guide/">#guide</a><a class="tag" href="/blog-preview/tags/git/">#git</a><a class="tag" href="/blog-preview/tags/docker/">#docker</a><a class="tag" href="/blog-preview/tags/devops/">#devops</a><a class="tag" href="/blog-preview/tags/containers/">#containers</a> </div> <details class="toc toc-inline"> <summary>Contents <span>3 sections</span></summary> <ol> <li><a href="#part-1-git-and-the-snapshot-object-graph">Part 1: Git and the snapshot object graph</a></li><li><a href="#part-2-docker-and-os-level-container-isolation">Part 2: Docker and OS-level container isolation</a></li><li><a href="#quick-reference">Quick reference</a></li> </ol> </details> </header> <div class="prose"><p>Almost every modern software or research project depends on two foundational engineering tools: <strong>Git</strong> to track and coordinate source-code history, and <strong>Docker</strong> to package the runtime environment so code behaves consistently across machines. Treating both tools as lists of memorized commands leads quickly to confusing merge conflicts, lost edits, bloated images, and broken GPU setups. This guide explains the underlying mental models behind Git and Docker—Git’s three-area workflow, content-addressed object graph, branching, and recovery mechanisms, followed by Docker’s OS-level isolation primitives, layered images, storage mounts, multi-stage builds, and container/host driver boundaries.</p>
+<p>Readers who want to review the operating system concepts of processes, filesystems, and virtual environments behind containers can pair this note with <a href="/blog-preview/blog/cs-foundations-408-se-ai/">Computer Science Foundations</a>. Small numerical calculations worked in the text are marked <em>(computed)</em>.</p>
+<h2 id="part-1-git-and-the-snapshot-object-graph">Part 1: Git and the snapshot object graph</h2>
+<p>Git is not a linear list of file diffs; it is a <strong>content-addressed filesystem</strong> storing snapshots of an entire repository as a directed acyclic graph (DAG) of commits.</p>
+<h3 id="the-three-areas-of-a-local-repository">The three areas of a local repository</h3>
+<p>Every file under Git moves across three distinct states:</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart LR</span></span>
+<span class="line"><span style="color:#E6EDF3">    W[Working Directory&#x3C;br/>Files edited on disk] -->|git add| S[Staging Area / Index&#x3C;br/>Exact snapshot queued for next commit]</span></span>
+<span class="line"><span style="color:#E6EDF3">    S -->|git commit| R[Local Repository .git&#x3C;br/>Immutable commit graph]</span></span>
+<span class="line"><span style="color:#E6EDF3">    R -->|git push| RM[Remote Repository&#x3C;br/>Shared collaboration mirror]</span></span>
+<span class="line"><span style="color:#E6EDF3">    RM -.->|git fetch / pull| R</span></span></code></pre>
+<ul>
+<li><strong>Working directory</strong>: Your normal project files on disk where edits happen.</li>
+<li><strong>Staging area (Index)</strong>: A deliberate buffer letting you select <em>which</em> changes belong in the next commit—so an unrelated formatting tweak does not get mixed into a bug fix.</li>
+<li><strong>Repository (<code>.git</code>)</strong>: Permanent, hashed snapshots linked into history.</li>
+</ul>
+<h3 id="objects-branches-and-head">Objects, branches, and HEAD</h3>
+<p>Inside <code>.git/objects/</code>, Git stores four object types, each identified by a cryptographic hash of its content:</p>
+<ul>
+<li><strong>Blob</strong>: The raw content of a single file (no filename attached).</li>
+<li><strong>Tree</strong>: A directory listing mapping filenames and permissions to blob hashes or sub-tree hashes.</li>
+<li><strong>Commit</strong>: A small record pointing to one root tree (the full project snapshot), zero or more parent commit hashes, author metadata, and a commit message.</li>
+<li><strong>Tag</strong>: A named fixed reference pointing to a specific commit (commonly used for releases).</li>
+</ul>
+<p>Because a <strong>branch</strong> is simply a 41-byte movable pointer holding one commit hash, creating or switching branches is nearly instantaneous. <strong><code>HEAD</code></strong> is a special pointer indicating which branch (or exact commit, in “detached HEAD” state) is currently checked out.</p>
+<h3 id="merge-vs-rebase">Merge vs. rebase</h3>
+<p>When a feature branch diverges from <code>main</code>, two ways exist to combine their histories:</p>
+<ul>
+<li><strong><code>git merge</code></strong>: Creates a new <strong>merge commit</strong> with two parents (or performs a fast-forward pointer move if <code>main</code> has not advanced). It preserves the exact historical topology of when work branched and rejoined.</li>
+<li><strong><code>git rebase</code></strong>: Replays your branch’s commits one by one on top of the latest <code>main</code>, producing new commit hashes and a clean linear timeline.</li>
+</ul>
+<p>A universal safety rule separates them: <strong>rebase local, unshared feature branches freely, but never rebase commits that have already been pushed to a shared branch</strong>, because rewriting shared commit hashes forces every collaborator to reconcile diverging histories.</p>
+<h3 id="safe-undo-reflog-and-binary-search-debugging">Safe undo, reflog, and binary-search debugging</h3>
+<p>Understanding pointers makes Git’s recovery tools straightforward:</p>
+<ul>
+<li><strong><code>git revert &#x3C;commit></code></strong>: Creates a <em>new</em> commit that applies the inverse change. Safe on shared branches because history only moves forward.</li>
+<li><strong><code>git reset</code></strong>: Moves the current branch pointer backward. <code>--soft</code> keeps changes staged; <code>--mixed</code> (default) unstages changes while keeping edits in the working directory; <code>--hard</code> discards working-directory edits as well.</li>
+<li><strong><code>git reflog</code></strong>: Records every position <code>HEAD</code> has pointed to locally (even after a mistaken <code>reset</code> or <code>rebase</code>), acting as a local safety net so “lost” commits can still be checked out by hash before garbage collection.</li>
+<li><strong><code>git bisect</code></strong>: Automates binary search across commit history when a bug appeared sometime in the past. Given one known-good commit and one known-bad commit spanning <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>1,024</mn></mrow><annotation encoding="application/x-tex">N = 1{,}024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">024</span></span></span></span> commits, <code>git bisect</code> isolates the exact offending commit in at most <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">⌈</mo><msub><mrow><mi>log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mn>1,024</mn><mo stretchy="false">⌉</mo><mo>=</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">\lceil \log_2 1{,}024 \rceil = 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">⌈</span><span class="mop"><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.207em;"><span style="top:-2.4559em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2441em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">024</span><span class="mclose">⌉</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> tests <em>(computed)</em>—and can run an automated test script at each step via <code>git bisect run</code>.</li>
+</ul>
+<h2 id="part-2-docker-and-os-level-container-isolation">Part 2: Docker and OS-level container isolation</h2>
+<p>“It works on my machine” happens because software depends on far more than its own source files: system libraries (<code>glibc</code>), compiler versions, Python packages, environment variables, and filesystem layout. Docker packages those user-space dependencies into a portable <strong>image</strong> and runs it inside an isolated <strong>container</strong>.</p>
+<h3 id="containers-vs-virtual-machines">Containers vs. virtual machines</h3>
+<p>A <strong>virtual machine (VM)</strong> emulates hardware through a hypervisor and boots an entire guest operating system kernel inside each VM. A <strong>Linux container</strong> takes a lighter approach: every container shares the <strong>host Linux kernel</strong> while two built-in kernel features isolate its view and resources:</p>
+<ul>
+<li><strong>Linux Namespaces</strong>: Give each container its own isolated view of process IDs (<code>PID</code>), network interfaces and ports (<code>NET</code>), mounted filesystems (<code>MNT</code>), hostname (<code>UTS</code>), inter-process communication (<code>IPC</code>), and user mappings (<code>USER</code>). Inside the container, the main application sees itself as PID 1.</li>
+<li><strong>Control Groups (<code>cgroups</code>)</strong>: Enforce strict limits on how much CPU time, RAM, and disk I/O a container may consume so one runaway process cannot starve the host.</li>
+</ul>
+<p><em>(On macOS and Windows, Docker Desktop runs a lightweight Linux VM transparently in the background to provide that Linux kernel.)</em></p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="mermaid"><code><span class="line"><span style="color:#E6EDF3">flowchart TB</span></span>
+<span class="line"><span style="color:#E6EDF3">    subgraph VM[Virtual Machine Model]</span></span>
+<span class="line"><span style="color:#E6EDF3">        VApp[App + Libraries] --> VOS[Full Guest OS Kernel] --> Hyp[Hypervisor] --> H1[Host OS &#x26; Hardware]</span></span>
+<span class="line"><span style="color:#E6EDF3">    end</span></span>
+<span class="line"><span style="color:#E6EDF3">    subgraph CTR[Container Model]</span></span>
+<span class="line"><span style="color:#E6EDF3">        CApp1[Container A: App + Libs] --> RT[Container Runtime]</span></span>
+<span class="line"><span style="color:#E6EDF3">        CApp2[Container B: App + Libs] --> RT</span></span>
+<span class="line"><span style="color:#E6EDF3">        RT --> K[Shared Host Linux Kernel&#x3C;br/>Namespaces + cgroups]</span></span>
+<span class="line"><span style="color:#E6EDF3">    end</span></span></code></pre>
+<h3 id="images-layers-and-overlayfs">Images, layers, and OverlayFS</h3>
+<p>A <strong>Docker image</strong> is an immutable template built from instructions in a <code>Dockerfile</code> (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>, <code>ENV</code>, <code>CMD</code>). Each instruction that modifies files produces a <strong>read-only filesystem layer</strong>. When you start a <strong>container</strong> from that image, the union filesystem (typically <strong>OverlayFS</strong>) stacks those read-only layers underneath a single thin <strong>writable container layer</strong> using copy-on-write.</p>
+<p>This layered cache model drives one of the highest-impact Dockerfile habits: <strong>place slowly changing steps before frequently changing source files</strong>.</p>
+<pre class="astro-code github-dark-default" style="background-color:#0d1117;color:#e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#FF7B72">FROM</span><span style="color:#E6EDF3"> python:3.12-slim</span></span>
+<span class="line"><span style="color:#FF7B72">WORKDIR</span><span style="color:#E6EDF3"> /app</span></span>
+<span class="line"><span style="color:#8B949E"># Dependencies change rarely -> cached layer reused across code edits</span></span>
+<span class="line"><span style="color:#FF7B72">COPY</span><span style="color:#E6EDF3"> requirements.txt .</span></span>
+<span class="line"><span style="color:#FF7B72">RUN</span><span style="color:#E6EDF3"> pip install --no-cache-dir -r requirements.txt</span></span>
+<span class="line"><span style="color:#8B949E"># Source code changes often -> placed last</span></span>
+<span class="line"><span style="color:#FF7B72">COPY</span><span style="color:#E6EDF3"> . .</span></span>
+<span class="line"><span style="color:#FF7B72">CMD</span><span style="color:#E6EDF3"> [</span><span style="color:#A5D6FF">"python"</span><span style="color:#E6EDF3">, </span><span style="color:#A5D6FF">"main.py"</span><span style="color:#E6EDF3">]</span></span></code></pre>
+<p>If <code>COPY . .</code> came before <code>pip install</code>, editing one line of Python would invalidate the cache and force every dependency to re-download on every build.</p>
+<p>For reproducible builds, pinning an image tag like <code>:latest</code> is unsafe because tags can be overwritten upstream. Pinning an exact <strong>image digest</strong> (<code>image@sha256:...</code>) guarantees bit-for-bit identical base layers across machines and time.</p>
+<h3 id="persistent-storage-and-container-networking">Persistent storage and container networking</h3>
+<p>Because a container’s top writable layer is discarded when the container is removed, persistent data and live source directories must be mounted explicitly:</p>
+<ul>
+<li><strong>Named volumes</strong> (<code>-v pgdata:/var/lib/postgresql/data</code>): Managed by Docker on the host; best for databases, caches, and build artifacts.</li>
+<li><strong>Bind mounts</strong> (<code>-v "$(pwd)":/workspace</code>): Map a specific host directory directly into the container; standard for active local development.</li>
+<li><strong>Port publishing and bridge networks</strong>: Containers run in isolated network namespaces. Publishing <code>-p 8080:80</code> forwards traffic from host port <code>8080</code> to container port <code>80</code>, while user-defined Docker bridge networks let sibling containers reach each other cleanly by service name.</li>
+</ul>
+<h3 id="multi-stage-builds-and-gpu-containers">Multi-stage builds and GPU containers</h3>
+<p>Two production patterns come up regularly in systems and AI engineering:</p>
+<ul>
+<li><strong>Multi-stage builds</strong>: A single <code>Dockerfile</code> can define a heavy <code>builder</code> stage containing compilers (<code>gcc</code>, <code>cargo</code>, Node build tools) and a minimal final stage (<code>FROM debian:bookworm-slim</code> or <code>distroless</code>) that copies <em>only</em> the compiled binary. This shrinks image size dramatically and removes unnecessary tools from the runtime attack surface.</li>
+<li><strong>GPU containers (NVIDIA Container Toolkit)</strong>: Because containers share the host kernel, the <strong>host machine provides the kernel-level GPU driver</strong>, while the <strong>container image provides the user-space CUDA Toolkit, cuDNN, and deep learning framework</strong>. Compatibility depends on the host driver being new enough to support the container’s CUDA runtime version; you should never install a Linux GPU kernel driver inside a Dockerfile.</li>
+</ul>
+<h2 id="quick-reference">Quick reference</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Table">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="left">Tool</th><th align="left">Core primitive</th><th align="left">Mental model</th><th align="left">Common pitfall to avoid</th></tr></thead><tbody><tr><td align="left"><strong>Git</strong></td><td align="left">Blob / Tree / Commit</td><td align="left">Full content-addressed snapshots forming a DAG</td><td align="left">Thinking of commits as fragile patch chains</td></tr><tr><td align="left"><strong>Git</strong></td><td align="left">Branch &#x26; <code>HEAD</code></td><td align="left">Lightweight movable pointers to commit hashes</td><td align="left">Rebasing commits already pushed to shared branches</td></tr><tr><td align="left"><strong>Git</strong></td><td align="left"><code>reflog</code> &#x26; <code>bisect</code></td><td align="left">Local <code>HEAD</code> history log; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>log</mi><mo>⁡</mo><mi>N</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(\log N)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">)</span></span></span></span> regression finder</td><td align="left">Panicking after <code>reset</code> before checking <code>git reflog</code></td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">Namespaces &#x26; <code>cgroups</code></td><td align="left">Kernel-level view isolation and resource quotas</td><td align="left">Confusing containers with full virtual machines</td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">Layered image &#x26; cache</td><td align="left">Read-only stack + thin copy-on-write top layer</td><td align="left">Putting <code>COPY . .</code> before dependency installation</td></tr><tr><td align="left"><strong>Docker</strong></td><td align="left">Volumes &#x26; digests</td><td align="left">External persistent mounts; immutable <code>sha256</code> pins</td><td align="left">Storing database files inside ephemeral container layers or relying on <code>:latest</code></td></tr><tr><td align="left"><strong>Docker (GPU)</strong></td><td align="left">Host driver + container toolkit</td><td align="left">Host owns kernel GPU driver; container owns user-space CUDA</td><td align="left">Installing GPU drivers inside the container image</td></tr></tbody></table></div>
+<details class="references">
+<summary>References</summary>
+<ol>
+<li><a href="https://git-scm.com/book/en/v2">Scott Chacon &#x26; Ben Straub, <em>Pro Git</em></a> — 2nd ed. · Three-area workflow, Git object model (blob/tree/commit/tag), branching, merge vs. rebase, <code>reflog</code>, and <code>bisect</code> · Git 2.x · §1–§3, §7, §10 · Primary</li>
+<li><a href="https://docs.docker.com/get-started/">Docker Official Documentation (<em>Get Started, Build, Storage, Networking</em>)</a> — Current stable docs · Image layer caching, OverlayFS, volumes vs. bind mounts, multi-stage builds, and image digests · Docker Engine / BuildKit · Manuals: Build, Storage, Network · Primary</li>
+<li><a href="https://man7.org/linux/man-pages/man7/namespaces.7.html">Linux Programmer’s Manual (<code>namespaces(7)</code>, <code>cgroups(7)</code>)</a> — Linux kernel 5.x/6.x · Kernel namespace types (<code>PID</code>, <code>NET</code>, <code>MNT</code>, <code>UTS</code>, <code>IPC</code>, <code>USER</code>) and <code>cgroups</code> resource control · Linux systems · <code>man 7 namespaces</code>, <code>man 7 cgroups</code> · Primary</li>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/">NVIDIA Container Toolkit Documentation</a> — Current stable docs · Division of responsibility between host GPU driver and container user-space CUDA libraries · Linux hosts with NVIDIA GPUs · Architecture &#x26; Overview · Primary</li>
+</ol>
+</details></div> </article> <aside class="toc toc-side" aria-label="Contents"> <p class="toc-title">Contents</p> <ol> <li><a href="#part-1-git-and-the-snapshot-object-graph">Part 1: Git and the snapshot object graph</a></li><li><a href="#part-2-docker-and-os-level-container-isolation">Part 2: Docker and OS-level container isolation</a></li><li><a href="#quick-reference">Quick reference</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="Back to top" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>

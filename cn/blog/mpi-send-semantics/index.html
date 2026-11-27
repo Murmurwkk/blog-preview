@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v5.18.2"><meta name="description" content="两个 MPI 进程都先发送、再接收时，短数组有时能顺利交换，因为 MPI 库可以暂存数据，让双方的发送调用先返回。换成长数组后，如果两边的发送都要等对方开始接收，两个进程就都走不到接收这一步，程序也就死锁了。"><meta name="robots" content="noindex, nofollow"><!-- Which build served this page: channel, commit and branch. Not shown on the page. --><meta name="build" content="preview 8bdd49f (tmp)"><meta name="theme-color" content="#070b17"><meta property="og:type" content="website"><meta property="og:title" content="MPI 点对点通信：消息匹配、发送模式与缓冲区复用"><meta property="og:description" content="两个 MPI 进程都先发送、再接收时，短数组有时能顺利交换，因为 MPI 库可以暂存数据，让双方的发送调用先返回。换成长数组后，如果两边的发送都要等对方开始接收，两个进程就都走不到接收这一步，程序也就死锁了。"><meta property="og:url" content="https://murmurwkk.github.io/blog-preview/cn/blog/mpi-send-semantics/"><link rel="canonical" href="https://murmurwkk.github.io/blog-preview/cn/blog/mpi-send-semantics/"><link rel="alternate" hreflang="en" href="https://murmurwkk.github.io/blog-preview/blog/mpi-send-semantics/"><link rel="alternate" hreflang="zh-CN" href="https://murmurwkk.github.io/blog-preview/cn/blog/mpi-send-semantics/"><link rel="icon" type="image/svg+xml" href="/blog-preview/favicon.svg"><link rel="alternate" type="application/rss+xml" title="Murmurwkk" href="/blog-preview/rss.xml"><title>MPI 点对点通信：消息匹配、发送模式与缓冲区复用</title><script>
+      // A saved choice from the theme button wins; otherwise follow the system.
+      (() => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved === 'light' || saved === 'dark' ? saved : system;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f8fa' : '#070b17');
+      })();
+    </script><link rel="stylesheet" href="/blog-preview/_astro/_id_.Cu3eH3Qw.css"></head> <body id="top" class="reading-page" style="--site-background-image: url(/blog-preview/background.webp); --site-background-image-small: url(/blog-preview/background-small.webp)">  <header class="site-header"> <div class="shell header-top"> <a class="brand" href="/blog-preview/" aria-label="Murmurwkk 首页"> <span class="brand-mark"><img src="/blog-preview/_astro/brand-icon.BmGDVjnH.webp" alt="" width="36" height="36"></span> <span class="brand-copy" lang="en"><strong>Murmurwkk</strong><small>AI Systems Lab</small></span> </a> <nav class="profile-tabs" aria-label="主导航"> <a href="/blog-preview/" aria-label="首页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM3.5 7.25h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5ZM8 3a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 8 3Z"></path></svg>   <span>首页</span>  </a><a href="/blog-preview/cn/blog/" aria-label="博客" aria-current="page">  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.5C6.35 1 7.35 1.42 8 2.1A3.76 3.76 0 0 1 10.75 1h4.5a.75.75 0 0 1 .75.75v11.5a.75.75 0 0 1-.75.75h-4.5c-.8 0-1.54.31-2.1.87a.92.92 0 0 1-1.3 0A2.97 2.97 0 0 0 5.25 14H.75a.75.75 0 0 1-.75-.75V1.75Zm1.5.75v10h3.75c.73 0 1.41.17 2 .48V3.63A2.24 2.24 0 0 0 5.25 2.5H1.5Zm7.25 1.13v9.35a4.46 4.46 0 0 1 2-.48h3.75v-10h-3.75a2.24 2.24 0 0 0-2 1.13Z"></path></svg>  <span>博客</span>  </a><a href="/blog-preview/about/" aria-label="关于">   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM8 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm-5.5 11c0-1.73 2.44-2.75 5.5-2.75s5.5 1.02 5.5 2.75v.25a.75.75 0 0 1-1.5 0V13c0-.43-1.33-1.25-4-1.25S4 12.57 4 13v.25a.75.75 0 0 1-1.5 0V13Z"></path></svg> <span>关于</span>  </a> </nav> <div class="header-actions"> <a class="header-github-link header-zhihu-link" href="https://www.zhihu.com/people/murmurmur-38" target="_blank" rel="noreferrer" aria-label="知乎主页"> <strong class="zhihu-mark" aria-hidden="true">知</strong> <span>知乎</span> <span aria-hidden="true">↗</span> </a> <a class="header-github-link" href="https://github.com/Murmurwkk" target="_blank" rel="noreferrer" aria-label="GitHub 主页"> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.64 5.47 7.71.4.08.55-.17.55-.39 0-.19-.01-.83-.01-1.51-2.01.38-2.53-.5-2.69-.96-.09-.23-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.62.82-2.19-.08-.2-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.5 7.5 0 0 1 8 3.91a7.4 7.4 0 0 1 2 .27c1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.96.08 2.16.51.57.82 1.3.82 2.19 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .22.15.47.55.39A8.13 8.13 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"></path></svg> <span>GitHub</span> <span aria-hidden="true">↗</span> </a> <button class="theme-toggle" type="button" aria-label="切换明暗主题"> <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 11.25A3.25 3.25 0 1 0 8 4.75a3.25 3.25 0 0 0 0 6.5ZM8 .5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 .5Zm0 12.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13ZM.5 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 .5 8Zm12.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 0 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm8.84 8.84a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 0 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06ZM13.3 2.7a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.46 11.54a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Z"></path></svg> <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 1.05a.75.75 0 0 1 .14.8 5.63 5.63 0 0 0 7.8 7.08.75.75 0 0 1 .98.93A7.2 7.2 0 1 1 5.4.9a.75.75 0 0 1 .8.15ZM4.78 2.98a5.7 5.7 0 1 0 8.14 7.77 7.14 7.14 0 0 1-8.14-7.77Z"></path></svg> </button> </div> </div> </header> <script type="module">const c=document.querySelector(".theme-toggle");c?.addEventListener("click",()=>{const e=(document.documentElement.dataset.theme??"dark")==="dark"?"light":"dark";document.documentElement.dataset.theme=e,document.querySelector('meta[name="theme-color"]')?.setAttribute("content",e==="light"?"#f6f8fa":"#070b17");try{localStorage.setItem("theme",e)}catch{}});const s=document.querySelector(".site-header");let o=window.scrollY,n=0;const r=()=>{const t=Math.max(window.scrollY,0),e=t-o;s?.classList.toggle("is-scrolled",t>12),t<=12||e<-4?s?.classList.remove("is-hidden"):e>4&&s?.classList.add("is-hidden"),o=t,n=0};window.addEventListener("scroll",()=>{n||(n=window.requestAnimationFrame(r))},{passive:!0});s?.addEventListener("focusin",()=>s.classList.remove("is-hidden"));</script> <aside class="preview-notice shell"> 预览站包含标为 <span lang="en" class="draft-label">draft</span> 的文章。 </aside> <main> <div class="article-layout has-toc"> <article class="article"> <header class="article-header"> <div class="reading-tools"> <p class="eyebrow doc-type-eyebrow" data-type="study-note">知识文章</p> <nav class="language-switch" aria-label="阅读语言"> <a lang="en" hreflang="en" href="/blog-preview/blog/mpi-send-semantics/">English</a> <a lang="zh-CN" hreflang="zh-CN" href="/blog-preview/cn/blog/mpi-send-semantics/" aria-current="page">简体中文</a> </nav> </div> <h1>MPI 点对点通信：消息匹配、发送模式与缓冲区复用</h1> <p class="article-description">两个 MPI 进程都先发送、再接收时，短数组有时能顺利交换，因为 MPI 库可以暂存数据，让双方的发送调用先返回。换成长数组后，如果两边的发送都要等对方开始接收，两个进程就都走不到接收这一步，程序也就死锁了。</p> <div class="tag-row">  <a class="tag" href="/blog-preview/cn/tags/MPI/">#MPI</a><a class="tag" href="/blog-preview/cn/tags/HPC/">#HPC</a><a class="tag" href="/blog-preview/cn/tags/message%20passing/">#message passing</a><a class="tag" href="/blog-preview/cn/tags/collectives/">#collectives</a><a class="tag" href="/blog-preview/cn/tags/distributed%20systems/">#distributed systems</a> </div> <details class="toc toc-inline"> <summary>目录 <span>7 节</span></summary> <ol> <li><a href="#mpi-通信域进程编号与上下文隔离">MPI 通信域、进程编号与上下文隔离</a></li><li><a href="#消息匹配与顺序保证通信域来源和标签">消息匹配与顺序保证：通信域、来源和标签</a></li><li><a href="#四种发送模式的完成条件与缓冲区复用">四种发送模式的完成条件与缓冲区复用</a></li><li><a href="#用-sendrecv-或非阻塞收发避免环形死锁">用 Sendrecv 或非阻塞收发避免环形死锁</a></li><li><a href="#派生数据类型的内存布局与类型签名匹配">派生数据类型的内存布局与类型签名匹配</a></li><li><a href="#边界进程线程支持与非阻塞通信的进展条件">边界进程、线程支持与非阻塞通信的进展条件</a></li><li><a href="#环形-allreduce-中-mpi-与-nccl-的收发约定">环形 AllReduce 中 MPI 与 NCCL 的收发约定</a></li> </ol> </details> </header> <div class="prose"><p>假设进程 0 要把数组发给进程 1，进程 1 也有一个数组要发回来。两边都把 <code>MPI_Send</code> 写在 <code>MPI_Recv</code> 前面。用几个整数测试，程序可能每次都跑通，但这只能说明这几次发送都顺利返回了。换成长数组以后，即使进程编号和消息标签（tag）原封不动，程序也可能卡在第一次发送。</p>
+<p>进程 0 从 <code>MPI_Send</code> 返回时，可以改写自己的发送数组，可它凭什么知道进程 1 收到了数据？如果库只是把数组复制到临时缓冲区，进程 1 此刻甚至可能还没调用 <code>MPI_Recv</code>。正因为发送完成和接收完成可以发生在不同的时刻，我们得先弄清哪一次接收能取走这条消息，再决定代码在哪里等待。文中的条款号对应 MPI 4.1 正式版 PDF。多个进程沿环交换梯度时也会遇到同样的问题。<a href="/blog-preview/cn/blog/allreduce-ring-tree/">环形 AllReduce 的收发过程</a></p>
+<h2 id="mpi-通信域进程编号与上下文隔离">MPI 通信域、进程编号与上下文隔离</h2>
+<p>两个进程可以运行同一份程序。调用 <code>MPI_Init</code> 初始化 MPI 后，每个进程用 <code>MPI_Comm_rank</code> 查询自己在通信域内的编号（rank），用 <code>MPI_Comm_size</code> 查询域内共有多少个进程，于是同一段代码就能按编号选出不同的收发对象。程序退出前，各进程调用 <code>MPI_Finalize</code> 结束 MPI 通信。这种写法叫作单程序多数据（SPMD），MPI 也允许各进程运行不同的程序。</p>
+<p>这里用的是组内通信域（communicator）。它把一组进程和私有的通信上下文关联起来，所以进程 0 指的是这个组里的第一个进程。假设一个库也要在这批进程之间传消息，它可以调用 <code>MPI_Comm_dup</code>，沿用原来的进程组并取得独立的上下文。如果还需要把进程分组，则可以调用 <code>MPI_Comm_split</code>。这样即使库与应用用了一样的 rank 和 tag，它们的消息也不会混在一起。同一个通信域中的集合操作仍要由成员按一致的顺序调用，如果部分进程跳过了一次集合操作，其余进程也可能一直等下去。</p>
+<h2 id="消息匹配与顺序保证通信域来源和标签">消息匹配与顺序保证：通信域、来源和标签</h2>
+<p>通信域确定以后，接收方还要按消息来源和标签选择消息。MPI 把这些匹配信息称为消息的“信封”。接收端可以要求某个来源，也可以指定 <code>MPI_ANY_SOURCE</code>；可以要求特定 tag，也可以用 <code>MPI_ANY_TAG</code>。同名变量、相同的数组地址、双方看似对称的循环，都不参与匹配。匹配成功后，类型和接收容量还要符合要求。</p>
+<p>如果接收方事先提交了接收请求，MPI 就知道该把到来的数据写到哪里。发送也可以先发生，这时实现通常会暂存较小的消息，较大的消息则可能要等接收方就绪才开始传，具体阈值由实现决定。接收方如果还不知道数组有多长，可以先用 <code>MPI_Probe</code> 查询消息，从返回的状态中取得元素数，分配好缓冲区，再按刚查到的来源和标签接收（§3.8）。这期间要避免另一条接收取走同一条消息，尤其是在多个线程共用一个通信域时。</p>
+<p><strong>两条消息都满足同一个接收的条件时，发送顺序才会限制这个接收可以取走哪一条。</strong> 假设同一进程先发 tag 为 1 的消息，再向同一个目的地发 tag 为 2 的消息。如果接收方明确指定 tag 为 2，它可以先收到后发的那条。如果它使用 <code>MPI_ANY_TAG</code>，两条消息都符合条件，它就不能越过仍在等待匹配的第一条，直接取走第二条（§3.5）。换成不同的发送方，MPI 就没有规定两条消息之间的全局顺序。不同通信域里的消息也互不影响。</p>
+<h2 id="四种发送模式的完成条件与缓冲区复用">四种发送模式的完成条件与缓冲区复用</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>发送模式</th><th>完成后能确定的事</th><th>程序承担的条件</th></tr></thead><tbody><tr><td><code>MPI_Send</code>，标准</td><td>发送缓冲区可复用；实现可能已缓存，也可能等过接收端</td><td>正确性要覆盖有缓冲和无缓冲两种情况</td></tr><tr><td><code>MPI_Ssend</code>，同步</td><td>匹配接收已经提交并开始接收，发送缓冲可复用</td><td>仍允许实现内部使用缓冲</td></tr><tr><td><code>MPI_Bsend</code>，缓冲</td><td>源缓冲区可复用，完成不依赖匹配接收；需要时使用附加缓冲区</td><td>配置足够的缓冲空间，MPI 4.1 也允许显式启用 <code>MPI_BUFFER_AUTOMATIC</code>（§3.6）</td></tr><tr><td><code>MPI_Rsend</code>，就绪</td><td>合法调用完成后可复用发送缓冲区</td><td>发起前匹配接收必须已经提交，否则程序有错</td></tr></tbody></table></div>
+<p>回到开头的数组交换，短消息可以采用 eager 协议。只要库有地方存放数据，两个进程就有机会先从发送调用返回，接着执行接收。长消息如果采用 rendezvous 协议，发送方就要等对端提交接收才能继续。两边都把接收写在发送后面，因而谁也等不到对方。四种发送模式对调用何时可以完成有不同约定（§3.4）。对接收方而言，能够读取收到的数组，还得以自己的<strong>接收请求完成</strong>为准。</p>
+<h2 id="用-sendrecv-或非阻塞收发避免环形死锁">用 Sendrecv 或非阻塞收发避免环形死锁</h2>
+<p>要解除这条循环依赖，可以把两个进程各自的收发写进同一次 <code>MPI_Sendrecv</code> 调用（§3.2.7）。把这个例子扩展成环时，每个进程向右邻发送，同时从左邻接收。只要收发对象和标签配对，MPI 就可以推进传输。另一种写法是先用 <code>MPI_Irecv</code> 提交接收，再用 <code>MPI_Isend</code> 提交发送。这两个调用各自返回一个请求句柄，进程可以用 <code>MPI_Waitall</code> 等待两项操作全部结束，也可以用 <code>MPI_Test</code> 分别检查。发送请求完成后可以改写发送数组，接收请求完成后才可以读取或改写接收数组（§3.7）。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>操作</th><th>可以在什么时候使用缓冲区？</th></tr></thead><tbody><tr><td><code>MPI_Recv</code></td><td>返回即可读取接收到的数据</td></tr><tr><td><code>MPI_Isend</code></td><td>发送请求完成后才可覆盖原发送区域</td></tr><tr><td><code>MPI_Irecv</code></td><td>接收请求完成后才能访问对应区域的数据</td></tr><tr><td><code>MPI_Sendrecv</code></td><td>返回时该调用的发送和接收均已完成</td></tr></tbody></table></div>
+<p><code>MPI_Test</code> 返回 false 表示请求尚未完成。即使调用了 <code>MPI_Cancel</code>，请求也还得用 <code>MPI_Wait</code> 或 <code>MPI_Test</code> 完成，再从状态调用 <code>MPI_Test_cancelled</code>，分清是取消成功，还是操作已经正常完成。MPI 4.1 已弃用对发送请求执行取消（§3.8.4）。</p>
+<h2 id="派生数据类型的内存布局与类型签名匹配">派生数据类型的内存布局与类型签名匹配</h2>
+<p>消息能够配对之后，还要确认数据类型相容。假设发送方要传出矩阵的一列，可以用 <code>MPI_Type_vector</code> 描述带步长的元素，接收方把这些元素紧密地收到一维数组里。MPI 比较的是<strong>基本类型的序列</strong>，也就是类型签名；类型描述中的位移可以不同（§3.3.1）。可用 <code>MPI_Type_contiguous</code>、<code>MPI_Type_indexed</code> 或 <code>MPI_Type_create_struct</code> 构造其他布局，通过 <code>MPI_Type_commit</code> 启用，<code>MPI_Type_free</code> 释放的是类型句柄。</p>
+<p>例如，发送方发了 10 个 <code>MPI_INT</code>，接收方为 20 个 <code>MPI_INT</code> 留出了空间，这次接收就装得下，之后用 <code>MPI_Get_count</code> 查询实际收到的元素数，结果是 10（§3.2.4）。如果接收方要求的是 10 个浮点数，哪怕两边恰好都是 40 字节，类型签名仍然不匹配。接收操作的 count 给出容量上限，消息过长可能报 <code>MPI_ERR_TRUNCATE</code>。如果要用 <code>MPI_BOTTOM</code> 和绝对地址把分散的变量拼成一个布局，还得确认每个位移指向哪个变量，以及传输期间该变量是否一直有效。</p>
+<p>经典接口的 count 是 <code>int</code>。传入的元素数超过 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mn>31</mn></msup><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">2^{31}-1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">31</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> 时应使用 MPI 4.0 引入的 <code>_c</code> 大计数接口，例如接收 <code>MPI_Count</code> 的 <code>MPI_Send_c</code>。2 GiB 的 <code>MPI_BYTE</code> 已越过这个边界，直接把 <code>size_t</code> 转成 <code>int</code> 可能溢出。</p>
+<h2 id="边界进程线程支持与非阻塞通信的进展条件">边界进程、线程支持与非阻塞通信的进展条件</h2>
+<p>假设进程排成一列，每个进程都要交换相邻网格的边界数据。最左和最右的进程各缺一个邻居，把那个方向的收发对象设成 <code>MPI_PROC_NULL</code>，发送和接收就都能立即完成，所有进程仍可共用同一段循环（§3.10）。如果程序还用不同的标签区分这些交换，可以从通信域属性 <code>MPI_TAG_UB</code> 查询标签上限，标准保证它至少是 32,767（§9.1）。</p>
+<p>用了非阻塞收发，线程可以在提交请求后继续计算，但这段时间里数据能传多远，还取决于 MPI 实现。有些实现把传输交给网卡或单独的通信线程，有些则要等应用再次调用 MPI 才能继续推进。要知道能否在目标机器上把通信时间隐藏在计算中，可以在计算间隙调用 <code>MPI_Test</code> 检查请求是否完成，给依赖这类调用的实现一个推进通信的机会，再测量收发和计算全部完成的时间（§2.9）。</p>
+<p>多线程程序用 <code>MPI_Init_thread</code> 协商级别（§11.6），必须查看实际返回值。<code>SINGLE</code> 假定只有一个线程；<code>FUNNELED</code> 要求只有初始化 MPI 的线程调用 MPI；<code>SERIALIZED</code> 允许多线程轮流调用；<code>MULTIPLE</code> 允许并发调用。这四个名字的完整前缀均为 <code>MPI_THREAD_</code>。错误处理也取决于通信域。通常默认处理器 <code>MPI_ERRORS_ARE_FATAL</code> 会终止作业；换作 <code>MPI_ERRORS_RETURN</code> 后，应用要逐次检查错误码。标准不要求实现检测出所有非法匹配（§9.3）。</p>
+<h2 id="环形-allreduce-中-mpi-与-nccl-的收发约定">环形 AllReduce 中 MPI 与 NCCL 的收发约定</h2>
+<p>把这些规则用于环形 AllReduce 时，归约分散和全收集都可以写成相邻 rank 的收发。为这两个阶段的协议建立独立通信域，可以避免库外消息意外参与匹配。阶段可能重叠时，使用不同 tag 有助于核对匹配；如果阶段串行、对端固定、调用顺序正确，也可以复用一个 tag。遇到挂起，先找是否有某个 rank 走进了不同的集合调用，再找是否所有进程都在等第一次发送。</p>
+<p>NCCL 的 <code>ncclSend</code> 和 <code>ncclRecv</code> 不使用 tag，收发双方要约定相同的元素数和数据类型。通信提交到指定的 CUDA 流后，GPU 异步执行传输，同一条流上的后续工作要等传输完成。以环上的一个 rank 为例，它要同时向右邻发送、从左邻接收，就把这两次调用放在 <code>ncclGroupStart</code> 与 <code>ncclGroupEnd</code> 之间，让收发都能向前推进。组内调用返回时，通信甚至可能还没入队。要判断缓冲区何时可以复用，可以在整组成功提交后，在同一条流上记录 CUDA 事件并等待事件完成。<a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html">NCCL 的 CUDA 流语义</a> · <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/p2p.html">点对点收发分组</a></p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="表格">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>现象</th><th>首先核对</th></tr></thead><tbody><tr><td>小消息正常，换长消息就卡住</td><td>是否依赖标准发送一定会被缓存</td></tr><tr><td>收错消息或顺序不稳定</td><td>source、tag、通信域和通配接收</td></tr><tr><td>接收截断</td><td>count 是否容得下实际消息，是否应先 probe</td></tr><tr><td>字节数一致却得到错误值</td><td>基本类型签名是否一致</td></tr><tr><td>非阻塞代码偶尔读到旧值</td><td>等待的是接收请求还是只等了发送请求</td></tr><tr><td>忙循环中传输不动</td><td>MPI 实现靠什么推进，用 <code>MPI_Test</code> 验证</td></tr></tbody></table></div>
+<details class="references">
+<summary>参考文献</summary>
+<ol>
+<li><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html">NCCL 的 CUDA 流语义</a></li>
+<li><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/p2p.html">点对点收发分组</a></li>
+<li><a href="https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report.pdf">MPI 4.1 标准</a></li>
+<li><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/api/p2p.html">NCCL 点对点 API</a></li>
+<li><a href="https://hpc-tutorials.llnl.gov/mpi/">LLNL MPI 教程</a></li>
+<li><a href="https://mpitutorial.com/tutorials/">MPI Tutorial</a></li>
+</ol>
+<p>规范依据为 <a href="https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report.pdf">MPI 4.1 标准</a> 和 <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/api/p2p.html">NCCL 点对点 API</a>。想从可运行示例入手，可以参阅 <a href="https://hpc-tutorials.llnl.gov/mpi/">LLNL MPI 教程</a> 和 <a href="https://mpitutorial.com/tutorials/">MPI Tutorial</a>。</p>
+</details></div> </article> <aside class="toc toc-side" aria-label="目录"> <p class="toc-title">目录</p> <ol> <li><a href="#mpi-通信域进程编号与上下文隔离">MPI 通信域、进程编号与上下文隔离</a></li><li><a href="#消息匹配与顺序保证通信域来源和标签">消息匹配与顺序保证：通信域、来源和标签</a></li><li><a href="#四种发送模式的完成条件与缓冲区复用">四种发送模式的完成条件与缓冲区复用</a></li><li><a href="#用-sendrecv-或非阻塞收发避免环形死锁">用 Sendrecv 或非阻塞收发避免环形死锁</a></li><li><a href="#派生数据类型的内存布局与类型签名匹配">派生数据类型的内存布局与类型签名匹配</a></li><li><a href="#边界进程线程支持与非阻塞通信的进展条件">边界进程、线程支持与非阻塞通信的进展条件</a></li><li><a href="#环形-allreduce-中-mpi-与-nccl-的收发约定">环形 AllReduce 中 MPI 与 NCCL 的收发约定</a></li> </ol> </aside> </div> </main> <footer> <div class="shell footer-inner"> <span>© 2026 MUR</span> <a href="/blog-preview/rss.xml">RSS</a> </div> </footer> <button class="back-to-top" type="button" aria-label="返回顶部" hidden> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.2 3.4 7.8a.75.75 0 0 0 1.06 1.06L7.25 6.07v6.68a.75.75 0 0 0 1.5 0V6.07l2.79 2.79A.75.75 0 1 0 12.6 7.8L8 3.2Z"></path></svg> </button> <div id="translation-tip" role="tooltip" lang="zh-CN" hidden></div> <script type="module" src="/blog-preview/_astro/BaseLayout.astro_astro_type_script_index_0_lang.DcxznK3V.js"></script> </body> </html> <script type="module">const i=[...document.querySelectorAll(".toc-side a")],c=i.map(e=>document.getElementById(decodeURIComponent(e.hash.slice(1)))).filter(e=>!!e);function o(){const e=window.innerHeight*.3;let r=-1;c.forEach((t,n)=>{t.getBoundingClientRect().top<=e&&(r=n)}),i.forEach((t,n)=>{n===r?t.setAttribute("aria-current","location"):t.removeAttribute("aria-current")})}if(c.length){let e=0;window.addEventListener("scroll",()=>{e||(e=window.requestAnimationFrame(()=>{o(),e=0}))},{passive:!0}),o()}document.querySelectorAll(".toc-inline a").forEach(e=>{e.addEventListener("click",()=>e.closest("details")?.removeAttribute("open"))});</script>
